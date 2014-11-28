@@ -1,3 +1,5 @@
+-- | Module in charge of finding the various segment
+-- in an ASCII text and the various anchors.
 module Text.AsciiDiagram.Parser( ParsingState( .. )
                                , parseText
                                , parseBuffer
@@ -109,8 +111,9 @@ parseLine prevSegments (lineNumber, txt) = TT.mapM go $ zip3 [0 ..] prevSegments
     go (columnNumber, vertical, c) | isBullet c = do
         let point = V2 columnNumber lineNumber
         addBullet point
-        continueHorizontalSegment point
-        continueVerticalSegment vertical point
+        addAnchor point '+'
+        stopHorizontalSegment
+        stopVerticalSegment vertical
 
     go (columnNumber, vertical, c) | isHorizontalLine c = do
         let point = V2 columnNumber lineNumber

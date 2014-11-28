@@ -19,6 +19,7 @@ library
   ghc-options: -Wall
   exposed-modules: Text.AsciiDiagram.Parser
                  , Text.AsciiDiagram.Geometry
+                 , Text.AsciiDiagram.Reconstructor
 
   -- other-modules:       
   -- other-extensions:    
