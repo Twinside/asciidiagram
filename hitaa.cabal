@@ -6,7 +6,7 @@ version:             0.1.0.0
 -- synopsis:            
 -- description:         
 -- license:             
-license-file:        LICENSE
+--license-file:        
 author:              Vincent Berthoux
 maintainer:          twinside@gmail.com
 -- copyright:           
@@ -16,11 +16,32 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
+  ghc-options: -Wall
   exposed-modules: Text.AsciiDiagram.Parser
+                 , Text.AsciiDiagram.Geometry
+
   -- other-modules:       
   -- other-extensions:    
   build-depends: base >=4.6 && <4.7
                , vector
+               , text
+               , linear
+               , containers
+               , mtl
 
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+Test-Suite test
+    type: exitcode-stdio-1.0
+    default-language:    Haskell2010
+    Main-Is: hitaa_test.hs
+    ghc-options: -Wall -O2
+    ghc-prof-options: -rtsopts -Wall -prof -auto-all
+    Hs-Source-Dirs: exec-src
+    Build-Depends: base >= 4.6
+                 , hitaa
+                 , text
+                 , containers
+                 , groom
+
