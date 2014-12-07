@@ -1,12 +1,14 @@
 module Text.AsciiDiagram.Geometry( Point
+                                 , Vector
                                  , Anchor( .. )
                                  , Segment( .. )
-                                 )where
+                                 ) where
 
 import Data.Monoid( Monoid( mappend, mempty ))
 import Linear( V2( .. ) )
 
 type Point = V2 Int
+type Vector = V2 Int
 
 data Anchor
     = AnchorMulti       -- ^ Associated to '+'
