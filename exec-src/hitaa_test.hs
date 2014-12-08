@@ -14,6 +14,24 @@ test1 =
     "  |     |      |   \n" <>
     "  +-----+------/   \n"
 
+test2 :: T.Text
+test2 =
+    "                   \n" <>
+    "  +-*----------+   \n" <>
+    "  |            |   \n" <>
+    "  |  /-----\\   +   \n" <>
+    "  |  |     |   |   \n" <>
+    "  |  \\-----/   |   \n" <>
+    "  +-----+------/   \n"
+
+analyze :: T.Text -> IO ()
+analyze txt = do
+  let parsed = parseText test1
+  putStrLn "================================="
+  putStrLn $ T.unpack txt
+  putStrLn "\nParsed:\n-------"
+  putStrLn . groom $ parsed
+
 main :: IO ()
-main = putStrLn . groom $ parseText test1
+main = mapM_ analyze [test1, test2]
 

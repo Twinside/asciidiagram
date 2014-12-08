@@ -68,10 +68,13 @@ vectorsForAnchor a dir = case (a, dir) of
     right = V2 1 0
     down = V2 0 1
 
-nextPointAfterSegment :: Point -> Segment -> Point
-nextPointAfterSegment p seg
-  | p == _segStart seg = segmentDirection seg
-  | otherwise = negate $ segmentDirection seg
+nextPointAfterSegment :: Point -> Segment -> [Point]
+nextPointAfterSegment p seg =
+    [nextPoint | delta <- [dir, negate <$> dir]
+               , let nextPoint = p ^+^ delta
+               , nextPoint /= p]
+  where
+    dir = segmentDirection seg
 
 nextPointAfterAnchor :: Point -> Point -> Anchor -> [Point]
 nextPointAfterAnchor pointSource anchorPosition anchor =
@@ -84,6 +87,24 @@ nextPointAfterAnchor pointSource anchorPosition anchor =
     direction = directionOfVector directionVector
     deltas = vectorsForAnchor anchor direction
 
+isDirectionIndependant :: ShapeElement -> Bool
+isDirectionIndependant (ShapeSegment _) = True
+isDirectionIndependant (ShapeAnchor _ anchor) =
+  case anchor of
+    AnchorMulti -> True
+    AnchorFirstDiag -> False
+    AnchorSecondDiag -> False
+
+-- | The coordinates on the grid are sure to be in the
+-- range ([0..width], [0..height]), so taking negative
+-- values ensure that we are in the grid.
+unknownStartPoint :: Point
+unknownStartPoint = V2 (-10) (-10)
+
 reconstruct :: M.Map Point Anchor -> S.Set Segment -> [Shape]
-reconstruct _anchors _segments = []
+reconstruct anchors segments = []
+  where
+    locations = prepareLocationMap anchors segments
+    starters =
+        S.fromList . filter isDirectionIndependant $ M.elems locations
 
