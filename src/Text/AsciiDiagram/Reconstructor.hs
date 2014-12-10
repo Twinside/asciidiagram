@@ -1,11 +1,24 @@
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Text.AsciiDiagram.Reconstructor  where
 
 import Control.Applicative( (<$>) )
-import Text.AsciiDiagram.Geometry
-import Data.Foldable as F
-import Linear( V2( .. ), (^+^), (^-^) )
+import Control.Monad( liftM )
+import Control.Monad.State.Strict( execState )
+import Control.Monad.State.Class( MonadState
+                                , gets
+                                , modify )
+import Data.Maybe( catMaybes )
+import Data.Monoid( mempty )
+import qualified Data.Foldable as F
 import qualified Data.Set as S
 import qualified Data.Map as M
+import Linear( V2( .. ), (^+^), (^-^) )
+
+import Text.AsciiDiagram.Geometry
+import Debug.Trace
+import Text.Printf
 
 data ShapeElement
     = ShapeAnchor Point Anchor
@@ -26,8 +39,10 @@ data Shape = Shape
     }
     deriving (Eq, Show)
 
+type ShapeLocations = M.Map Point ShapeElement
+
 prepareLocationMap :: M.Map Point Anchor -> S.Set Segment
-                   -> M.Map Point ShapeElement
+                   -> ShapeLocations
 prepareLocationMap anchors segments =
     F.foldl' addSegment mapWithAnchors segments
   where
@@ -101,10 +116,105 @@ isDirectionIndependant (ShapeAnchor _ anchor) =
 unknownStartPoint :: Point
 unknownStartPoint = V2 (-10) (-10)
 
+unconsSet :: (Ord a) => S.Set a -> Maybe (a, S.Set a)
+unconsSet s | S.null s = Nothing
+unconsSet s = Just (mini, S.delete mini s)
+  where
+    mini = S.findMin s
+
+data ShapeTrace = ShapeTrace
+  { shapeIndexInHistory :: !(M.Map ShapeElement Int)
+  , shapeTraceSize :: !Int
+  , shapeTrace :: ![ShapeElement]
+  , shapes :: [Shape]
+  , shapeElementSeens :: S.Set ShapeElement
+  }
+
+emptyShapeTrace :: ShapeTrace
+emptyShapeTrace = ShapeTrace
+  { shapeIndexInHistory = mempty
+  , shapeTraceSize = 0
+  , shapeTrace = mempty
+  , shapeElementSeens = mempty
+  , shapes = mempty
+  }
+
+pushShape :: (MonadState ShapeTrace m) => ShapeElement -> m ()
+pushShape shape = modify $ \strace ->
+  let currentIndex = shapeTraceSize strace in
+  strace
+    { shapeIndexInHistory =
+        M.insert shape currentIndex $ shapeIndexInHistory strace
+    , shapeTraceSize = succ currentIndex
+    , shapeTrace = shape : shapeTrace strace
+    }
+
+isInHistory :: (MonadState ShapeTrace m) => ShapeElement -> m (Maybe Int)
+isInHistory s =
+  -- should be <$> instead of liftM, but Functor is not superclass
+  -- of Monad as time of writing.
+  M.lookup s `liftM` gets shapeIndexInHistory
+
+shapesAfterCurrent :: ShapeLocations -> Point -> ShapeElement
+                   -> [(Point, ShapeElement)]
+shapesAfterCurrent locations pt shape =
+    catMaybes [(p,) <$> M.lookup p locations | p <- points]
+  where
+    points = case shape of
+      ShapeAnchor p a -> nextPointAfterAnchor pt p a
+      ShapeSegment segment -> nextPointAfterSegment pt segment
+
+
+saveLoopingUpToIndex :: (MonadState ShapeTrace m) => Int -> m ()
+saveLoopingUpToIndex ix = modify $ \strace ->
+  let shapeElems = take (shapeTraceSize strace - ix) $ shapeTrace strace
+  in
+  strace { shapes = Shape shapeElems True : shapes strace
+         , shapeElementSeens =
+             F.foldr S.delete (shapeElementSeens strace) shapeElems
+         }
+
+backtrack :: (MonadState ShapeTrace m) => m ()
+backtrack = modify $ \strace ->
+  strace
+    { shapeTraceSize = shapeTraceSize strace - 1
+    , shapeTrace = tail $ shapeTrace strace
+    , shapeIndexInHistory =
+        M.delete (head $ shapeTrace strace) $ shapeIndexInHistory strace
+    }
+
+filterSaveLooping :: (MonadState ShapeTrace m)
+                  => [(a, ShapeElement)]
+                  -> m [(a, ShapeElement)]
+filterSaveLooping rootList = do
+  indexHistory <- gets shapeIndexInHistory
+  let go [] = return []
+      go lst@(x@(_,shape):xs) = case M.lookup shape indexHistory of
+        Nothing -> (x :) `liftM` go xs
+        Just ix -> do
+          saveLoopingUpToIndex ix
+          return lst
+  go rootList
+
 reconstruct :: M.Map Point Anchor -> S.Set Segment -> [Shape]
-reconstruct anchors segments = []
+reconstruct anchors segments =
+    shapes $ execState (go starters) emptyShapeTrace
   where
     locations = prepareLocationMap anchors segments
     starters =
         S.fromList . filter isDirectionIndependant $ M.elems locations
+
+    go (unconsSet -> Just (shape, rest)) = trace (printf "TOP level:%s" $ show shape) $ do
+        follow (unknownStartPoint, shape)
+        allSeens <- gets shapeElementSeens
+        go $ rest `S.difference` allSeens
+    go _ = return ()
+      
+    follow (pt, shape) = trace (printf "In shape %s" $ show shape) $do
+      pushShape shape
+      let connectedShapes = shapesAfterCurrent locations pt shape
+      shapeToFollow <- filterSaveLooping connectedShapes 
+      mapM_ follow shapeToFollow
+      backtrack
+-- -}
 
