@@ -80,7 +80,7 @@ addBullet p = modify $ \s ->
 
 continueHorizontalSegment :: Point -> Parsing ()
 continueHorizontalSegment p = modify $ \s ->
-   s { currentSegment = currentSegment s <> Just (Segment p p) }
+   s { currentSegment = currentSegment s <> Just (Segment p p SegmentHorizontal) }
 
 stopHorizontalSegment :: Parsing ()
 stopHorizontalSegment = modify $ \s ->
@@ -92,9 +92,9 @@ stopHorizontalSegment = modify $ \s ->
     inserter (Just seg) s = S.insert seg s
 
 continueVerticalSegment :: Maybe Segment -> Point -> Parsing (Maybe Segment)
-continueVerticalSegment Nothing p = return . Just $ Segment p p
-continueVerticalSegment (Just (Segment start _)) p =
-    return . Just $ Segment start p
+continueVerticalSegment Nothing p = return . Just $ Segment p p SegmentVertical
+continueVerticalSegment (Just (Segment start _ _)) p =
+    return . Just $ Segment start p SegmentVertical
 
 stopVerticalSegment :: Maybe Segment -> Parsing (Maybe a)
 stopVerticalSegment Nothing = return Nothing
