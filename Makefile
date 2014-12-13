@@ -1,3 +1,4 @@
+SHELL:=cmd
 
 all:
 	cabal build
@@ -5,6 +6,9 @@ all:
 conf:
 	cabal configure --disable-library-profiling
 
+lint:
+	hlint .
+
 run:
-	./dist/build/test/test
+	dist\build\test\test > out.txt 2>&1
 

@@ -23,7 +23,7 @@ import Text.AsciiDiagram.Geometry
 isAnchor :: Char -> Bool
 isAnchor c = c `VU.elem` anchors
   where
-    anchors = VU.fromList ['+', '/', '\\']
+    anchors = VU.fromList "+/\\"
   
 anchorOfChar :: Char -> Anchor
 anchorOfChar '+' = AnchorMulti
@@ -34,12 +34,12 @@ anchorOfChar _ = AnchorMulti
 isHorizontalLine :: Char -> Bool
 isHorizontalLine c = c `VU.elem` horizontalLineElements
   where
-    horizontalLineElements = VU.fromList ['-', '=']
+    horizontalLineElements = VU.fromList "-="
 
 isVerticalLine :: Char -> Bool
 isVerticalLine c = c `VU.elem` verticalLineElements
   where
-    verticalLineElements = VU.fromList [':', '|']
+    verticalLineElements = VU.fromList ":|"
 
 isBullet :: Char -> Bool
 isBullet '*' = True

@@ -42,14 +42,11 @@ type ShapeLocations = M.Map Point ShapeElement
 
 prepareLocationMap :: M.Map Point Anchor -> S.Set Segment
                    -> ShapeLocations
-prepareLocationMap anchors segments =
-    F.foldl' addSegment mapWithAnchors segments
-  where
-    mapWithAnchors = M.mapWithKey ShapeAnchor anchors
-    addSegment acc seg =
-        M.insert (_segEnd seg) element $ M.insert (_segStart seg) element acc
-      where
-        element = ShapeSegment seg
+prepareLocationMap anchors = F.foldl' addSegment mapWithAnchors where
+  mapWithAnchors = M.mapWithKey ShapeAnchor anchors
+  addSegment acc seg = M.insert (_segEnd seg) element
+                     $ M.insert (_segStart seg) element acc
+    where element = ShapeSegment seg
 
 
 directionOfVector :: Vector -> Direction
