@@ -53,13 +53,14 @@ analyze txt = do
   putStrLn "\nReconstructed\n------"
   putStrLn $ groom reconstructed
 
-main :: IO ()
-main = mapM_ analyze [test2]
-{-
-                     [ test0
-                     , test1
-                     , test2
-                     ]
+testList :: [T.Text]
+testList =
+  [ test0
+  , test1
+  , test2
+  , test3
+  ]
 
--}
+main :: IO ()
+main = mapM_ analyze testList
 

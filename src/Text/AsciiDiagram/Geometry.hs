@@ -3,6 +3,8 @@ module Text.AsciiDiagram.Geometry( Point
                                  , Anchor( .. )
                                  , Segment( .. )
                                  , SegmentKind( .. )
+                                 , Shape( .. )
+                                 , ShapeElement( .. )
                                  ) where
 
 import Data.Monoid( Monoid( mappend, mempty ))
@@ -12,10 +14,10 @@ type Point = V2 Int
 type Vector = V2 Int
 
 data Anchor
-    = AnchorMulti       -- ^ Associated to '+'
-    | AnchorFirstDiag   -- ^ Associated to '/'
-    | AnchorSecondDiag  -- ^ Associated to '\'
-    deriving (Eq, Ord, Show)
+  = AnchorMulti       -- ^ Associated to '+'
+  | AnchorFirstDiag   -- ^ Associated to '/'
+  | AnchorSecondDiag  -- ^ Associated to '\'
+  deriving (Eq, Ord, Show)
 
 data SegmentKind
   = SegmentHorizontal
@@ -40,4 +42,16 @@ instance Show Segment where
 instance Monoid Segment where
     mempty = Segment 0 0 SegmentVertical
     mappend (Segment a _ _) (Segment _ b k) = Segment a b k
+
+data ShapeElement
+  = ShapeAnchor !Point !Anchor
+  | ShapeSegment !Segment
+  deriving (Eq, Ord, Show)
+
+
+data Shape = Shape
+  { shapeElements :: [ShapeElement]
+  , shapeIsClosed :: Bool
+  }
+  deriving (Eq, Show)
 
