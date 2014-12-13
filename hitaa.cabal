@@ -20,6 +20,9 @@ library
   exposed-modules: Text.AsciiDiagram.Parser
                  , Text.AsciiDiagram.Geometry
                  , Text.AsciiDiagram.Reconstructor
+                 , Text.AsciiDiagram.Deduplicator
+
+  --other-modules: Text.AsciiDiagram.Deduplicator
 
   -- other-modules:       
   -- other-extensions:    

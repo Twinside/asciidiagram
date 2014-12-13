@@ -53,5 +53,5 @@ data Shape = Shape
   { shapeElements :: [ShapeElement]
   , shapeIsClosed :: Bool
   }
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 

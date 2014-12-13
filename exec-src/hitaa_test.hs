@@ -5,6 +5,7 @@ import Data.Monoid( (<>) )
 import qualified Data.Text as T
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
+import Text.AsciiDiagram.Deduplicator
 import Text.Groom
 
 test0 :: T.Text
@@ -46,12 +47,15 @@ analyze txt = do
   let parsed = parseText txt
       reconstructed =
           reconstruct (anchorMap parsed) $ segmentSet parsed
+      dedup = deduplicate reconstructed
   putStrLn "================================="
   putStrLn $ T.unpack txt
   putStrLn "\nParsed:\n-------"
   putStrLn $ groom parsed
   putStrLn "\nReconstructed\n------"
   putStrLn $ groom reconstructed
+  putStrLn "\nDeduplicated\n------"
+  putStrLn $ groom dedup
 
 testList :: [T.Text]
 testList =
