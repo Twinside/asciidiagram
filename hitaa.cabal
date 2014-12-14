@@ -21,6 +21,7 @@ library
                  , Text.AsciiDiagram.Geometry
                  , Text.AsciiDiagram.Reconstructor
                  , Text.AsciiDiagram.Deduplicator
+                 , Text.AsciiDiagram.SvgRender
 
   --other-modules: Text.AsciiDiagram.Deduplicator
 
@@ -32,6 +33,9 @@ library
                , linear
                , containers
                , mtl
+               , lens
+               , svg-tree
+               , JuicyPixels
 
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -48,4 +52,5 @@ Test-Suite test
                  , text
                  , containers
                  , groom
+                 , svg-tree
 

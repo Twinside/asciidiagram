@@ -1,12 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fwarn-unused-binds #-}
 
+import Control.Applicative( (<$>) )
+import Control.Monad( foldM )
 import Data.Monoid( (<>) )
 import qualified Data.Text as T
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
 import Text.AsciiDiagram.Deduplicator
+import Text.AsciiDiagram.SvgRender
 import Text.Groom
+import Graphics.Svg
 
 test0 :: T.Text
 test0 =
@@ -42,6 +46,17 @@ test3 =
     "  |  \\-----/   |   \n" <>
     "  +-----+------/   \n"
 
+test4 :: T.Text
+test4 =
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n" <>
+    "+++++++++++++++\n"
+
 analyze :: T.Text -> IO ()
 analyze txt = do
   let parsed = parseText txt
@@ -57,14 +72,45 @@ analyze txt = do
   putStrLn "\nDeduplicated\n------"
   putStrLn $ groom dedup
 
-testList :: [T.Text]
+tag :: String -> ShowS -> ShowS
+tag tagName content =
+    ('<':) . (tagName++) . ('>':) .
+        content . 
+    ("</" ++) . (tagName++) . ('>':)
+
+html, body, pre :: ShowS -> ShowS
+pre = tag "pre"
+body = tag "body"
+html = tag "html"
+
+img :: String -> ShowS
+img href = ("<img src=\""++) . (href++) . ("\" />"++)
+
+toSvg :: [(String, T.Text)] -> IO ()
+toSvg lst = do
+    hDoc <- html . body <$> foldM go id lst
+    writeFile "test.html" $ hDoc ""
+  where
+    go acc (name, content) = do
+      let parsed = parseText content
+          reconstructed =
+              reconstruct (anchorMap parsed) $ segmentSet parsed
+          dedup = deduplicate reconstructed
+          fileName = name ++ ".svg"
+      saveXmlFile fileName $ shapesToSvgDocument dedup
+      return $ acc . img fileName . pre (T.unpack content ++)
+
+testList :: [(String, T.Text)]
 testList =
-  [ test0
-  , test1
-  , test2
-  , test3
+  [ ("t0", test0)
+  , ("t1", test1)
+  , ("t2", test2)
+  , ("t3", test3)
+  , ("t4", test4)
   ]
 
 main :: IO ()
-main = mapM_ analyze testList
+main = do
+  mapM_ (analyze . snd) testList
+  toSvg testList
 

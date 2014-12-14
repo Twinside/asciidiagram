@@ -5,6 +5,7 @@ module Text.AsciiDiagram.Geometry( Point
                                  , SegmentKind( .. )
                                  , Shape( .. )
                                  , ShapeElement( .. )
+                                 , firstPointOfShape
                                  ) where
 
 import Data.Monoid( Monoid( mappend, mempty ))
@@ -32,12 +33,13 @@ data Segment = Segment
   deriving (Eq, Ord)
 
 instance Show Segment where
-    showsPrec _d (Segment s e k) =
-      showString "Segment " . start . end . kind
-        where
-          start = showParen True $ shows s
-          end = showParen True $ shows e
-          kind = showParen True $ shows k
+    showsPrec d (Segment s e k) =
+      showParen (d >= 10) $
+          showString "Segment " . start . end . kind
+      where
+        start = showParen True $ shows s
+        end = showParen True $ shows e
+        kind = shows k
 
 instance Monoid Segment where
     mempty = Segment 0 0 SegmentVertical
@@ -54,4 +56,10 @@ data Shape = Shape
   , shapeIsClosed :: Bool
   }
   deriving (Eq, Ord, Show)
+
+firstPointOfShape :: [ShapeElement] -> Point
+firstPointOfShape lst = case lst of
+  [] -> V2 (-10) (-10)
+  ShapeAnchor p _ : _ -> p
+  ShapeSegment seg : _ -> _segStart seg
 

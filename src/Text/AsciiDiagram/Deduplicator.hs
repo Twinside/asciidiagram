@@ -65,12 +65,6 @@ makeShapeClockwise shape
   where
     signedArea = signedAreaOfPoints $ pointsOfShape shape
 
-firstPointOfShape :: [ShapeElement] -> Point
-firstPointOfShape lst = case lst of
-  [] -> V2 (-10) (-10)
-  ShapeAnchor p _ : _ -> p
-  ShapeSegment seg : _ -> _segStart seg
-
 alignOnLowerFirstPoint :: Shape -> Shape
 alignOnLowerFirstPoint shape = Shape newElems $ shapeIsClosed shape
   where
