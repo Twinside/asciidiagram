@@ -1,15 +1,21 @@
-module Text.AsciiDiagram.Deduplicator( deduplicate ) where
+module Text.AsciiDiagram.Deduplicator( normalizeClosedShape
+                                     , removeLargeCycle 
+                                     ) where
 
 import Control.Applicative
+import Data.Foldable( Foldable )
+import qualified Data.Foldable as F
 import Data.Function( on )
-import Data.List( partition
-                , inits
+import Data.List( inits
                 , tails
                 , minimumBy
+                , sort
                 )
+import Data.Monoid( mempty )
 import qualified Data.Set as S
-import Text.AsciiDiagram.Geometry
 import Linear( V2( V2 ), (^-^) )
+
+import Text.AsciiDiagram.Geometry
 
 isNearBy :: Point -> Point -> Bool
 isNearBy p1 p2 = check $ abs <$> p1 ^-^ p2
@@ -71,12 +77,30 @@ alignOnLowerFirstPoint shape = Shape newElems $ shapeIsClosed shape
     newElems = minimumBy (compare `on` firstPointOfShape)
              . allRotations $ shapeElements shape
 
-normalizeClosedShapes :: [Shape] -> [Shape]
-normalizeClosedShapes =
-    fmap $ alignOnLowerFirstPoint . makeShapeClockwise
+normalizeClosedShape :: Shape -> Shape
+normalizeClosedShape =
+    alignOnLowerFirstPoint . makeShapeClockwise
 
-deduplicate :: [Shape] -> S.Set Shape
-deduplicate lst = S.fromList $ open ++ normalizeClosedShapes closed
+removeLargeCycle :: Foldable t => t Shape -> S.Set Shape
+removeLargeCycle =
+    snd . removeCycleWithAllUsedElements . sortShapesByArea
   where
-    (closed, open) = partition shapeIsClosed lst
+    removeCycleWithAllUsedElements =
+      F.foldl' go (mempty, mempty)
+
+    sortShapesByArea = 
+      fmap snd . sort . fmap addArea . F.toList
+
+    addArea shape =
+      (abs . signedAreaOfPoints $ pointsOfShape shape, shape)
+
+    isAllUsed allElems =
+      all (`S.member` allElems) . shapeElements
+
+    enrichWith set =
+      F.foldl' (flip S.insert) set . shapeElements
+
+    go (seen, out) shape
+      | isAllUsed seen shape = (seen, out)
+      | otherwise = (seen `enrichWith` shape, S.insert shape out)
 

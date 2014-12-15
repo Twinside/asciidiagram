@@ -46,6 +46,21 @@ test3 =
     "  |  \\-----/   |   \n" <>
     "  +-----+------/   \n"
 
+testSmall :: T.Text
+testSmall =
+    "+++++\n" <>
+    "+++++\n" <>
+    "+++++\n" <>
+    "+++++\n"
+
+testMedium :: T.Text
+testMedium =
+    "++++++++++\n" <>
+    "++++++++++\n" <>
+    "++++++++++\n" <>
+    "++++++++++\n" <>
+    "++++++++++\n"
+
 test4 :: T.Text
 test4 =
     "+++++++++++++++\n" <>
@@ -73,15 +88,15 @@ analyze txt = do
   let parsed = parseText txt
       reconstructed =
           reconstruct (anchorMap parsed) $ segmentSet parsed
-      dedup = deduplicate reconstructed
+      deduped = removeLargeCycle reconstructed
   putStrLn "================================="
   putStrLn $ T.unpack txt
   putStrLn "\nParsed:\n-------"
   putStrLn $ groom parsed
   putStrLn "\nReconstructed\n------"
   putStrLn $ groom reconstructed
-  putStrLn "\nDeduplicated\n------"
-  putStrLn $ groom dedup
+  putStrLn "\nDeduped\n------"
+  putStrLn $ groom deduped
 
 tag :: String -> ShowS -> ShowS
 tag tagName content =
@@ -106,9 +121,9 @@ toSvg lst = do
       let parsed = parseText content
           reconstructed =
               reconstruct (anchorMap parsed) $ segmentSet parsed
-          dedup = deduplicate reconstructed
+          deduped = removeLargeCycle reconstructed
           fileName = name ++ ".svg"
-      saveXmlFile fileName $ shapesToSvgDocument dedup
+      saveXmlFile fileName $ shapesToSvgDocument deduped
       return $ acc . img fileName . pre (T.unpack content ++)
 
 testList :: [(String, T.Text)]
@@ -117,8 +132,10 @@ testList =
   , ("t1", test1)
   , ("t2", test2)
   , ("t3", test3)
-  , ("t4", test4)
-  , ("t5", test5)
+  , ("tsmall", testSmall)
+  , ("tmedium", testMedium)
+  {-, ("t4", test4)-}
+  {-, ("t5", test5)-}
   ]
 
 main :: IO ()

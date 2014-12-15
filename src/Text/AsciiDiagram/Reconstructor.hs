@@ -25,6 +25,7 @@ import qualified Data.Map as M
 import Linear( V2( .. ), (^+^), (^-^) )
 
 import Text.AsciiDiagram.Geometry
+import Text.AsciiDiagram.Deduplicator
 
 {-import Debug.Trace-}
 {-import Text.Printf-}
@@ -133,7 +134,7 @@ data ShapeTrace = ShapeTrace
   , shapeTraceSize         :: !Int
   , shapeTrace             :: ![ShapeElement]
   , shapeElementSeen       :: S.Set ShapeElement
-  , shapeFound             :: [Shape]
+  , shapeFound             :: S.Set Shape
   }
 
 
@@ -156,11 +157,11 @@ safeTail (_:xs) = xs
 -- | This function help manage the history of the
 -- stack of shape elements during the recursive descent.
 withShapeInTrace :: (MonadState ShapeTrace m, Functor m)
-                 => ShapeElement -> m a -> m a
+                 => ShapeElement -> (Bool -> m a) -> m a
 withShapeInTrace shape action = do
   oldIndex <- M.lookup shape <$> gets shapeIndexInHistory
   modify enter
-  result <- action
+  result <- action $ oldIndex /= Nothing
   leave oldIndex
   return result
   where
@@ -226,10 +227,10 @@ isPathAlreadyVisited pt el =
 withIncomingPoint :: (MonadState ShapeTrace m, Functor m)
                   => Point -> ShapeElement ->  m a -> m a
 withIncomingPoint pt shape act = do
-    previously <- rememberChosenPath pt shape
+    _previously <- rememberChosenPath pt shape
     ret <- act
-    unless previously $
-        forgetChosenPath pt shape
+    {-unless previously $-}
+    forgetChosenPath pt shape
     return ret
 
 
@@ -257,8 +258,9 @@ shapesAfterCurrent locations (previousPoint, shape) =
 
 saveLoopingUpToIndex :: (MonadState ShapeTrace m) => Int -> m ()
 saveLoopingUpToIndex ix = modify go where
-  go strace = strace { shapeFound = Shape shapeElems True : shapeFound strace }
+  go strace = strace { shapeFound = S.insert shape $ shapeFound strace }
     where
+      shape = normalizeClosedShape $ Shape shapeElems True
       shapeElems = take (shapeTraceSize strace - ix) $ shapeTrace strace
 
 
@@ -274,11 +276,12 @@ lookupAndSaveCycle shapeElem = do
 followShape :: (MonadState ShapeTrace m, Applicative m)
             => ShapeLocations -> (Point, ShapeElement) -> m ()
 followShape locations shape@(incomingPoint, shapeElem) = do
-  withShapeInTrace shapeElem $
+  withShapeInTrace shapeElem $ \alreadyPresent ->
     withIncomingPoint incomingPoint shapeElem $ do
       let connectedShapes = shapesAfterCurrent locations shape
       case connectedShapes of
         [] -> return () -- TODO : report a line up to the previous branch
+        _ | alreadyPresent -> return ()
         lst -> mapM_ (digChild locations shapeElem) lst
 
   lookupAndSaveCycle shapeElem
@@ -295,7 +298,7 @@ digChild locations parentElem child = do
 
 
 -- | Main call of the reconstruction function
-reconstruct :: M.Map Point Anchor -> S.Set Segment -> [Shape]
+reconstruct :: M.Map Point Anchor -> S.Set Segment -> S.Set Shape
 reconstruct anchors segments =
     shapeFound $ execState (go starters) emptyShapeTrace
   where
