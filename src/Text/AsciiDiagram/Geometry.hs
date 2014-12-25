@@ -18,6 +18,7 @@ data Anchor
   = AnchorMulti       -- ^ Associated to '+'
   | AnchorFirstDiag   -- ^ Associated to '/'
   | AnchorSecondDiag  -- ^ Associated to '\'
+  | AnchorPoint       -- ^ Kind of "end anchor", without continuation.
   deriving (Eq, Ord, Show)
 
 data SegmentKind

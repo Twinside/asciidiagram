@@ -19,6 +19,7 @@ library
   ghc-options: -Wall
   exposed-modules: Text.AsciiDiagram.Parser
                  , Text.AsciiDiagram.Geometry
+                 , Text.AsciiDiagram.Graph
                  , Text.AsciiDiagram.Reconstructor
                  , Text.AsciiDiagram.Deduplicator
                  , Text.AsciiDiagram.SvgRender

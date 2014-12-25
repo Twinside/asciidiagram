@@ -1,6 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables     #-}
 -- | This module will try to reconstruct closed shapes and
 -- lines from -- the set of anchors and segments.
 --
@@ -12,10 +13,11 @@
 module Text.AsciiDiagram.Reconstructor( reconstruct ) where
 
 import Control.Applicative( Applicative, (<$>) )
-import Control.Monad( unless )
+import Control.Monad( unless, when )
 import Control.Monad.State.Strict( execState )
 import Control.Monad.State.Class( MonadState
                                 , gets
+                                , get
                                 , modify )
 import Data.Maybe( catMaybes, fromMaybe )
 import Data.Monoid( mempty )
@@ -26,6 +28,8 @@ import Linear( V2( .. ), (^+^), (^-^) )
 
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.Deduplicator
+import Text.AsciiDiagram.Graph
+import Control.Lens
 
 {-import Debug.Trace-}
 {-import Text.Printf-}
@@ -45,9 +49,9 @@ prepareLocationMap :: M.Map Point Anchor -> S.Set Segment
                    -> ShapeLocations
 prepareLocationMap anchors = F.foldl' addSegment mapWithAnchors where
   mapWithAnchors = M.mapWithKey ShapeAnchor anchors
-  addSegment acc seg = M.insert (_segEnd seg) element
-                     $ M.insert (_segStart seg) element acc
-    where element = ShapeSegment seg
+  addSegment acc seg = M.insert (_segEnd seg) el
+                     $ M.insert (_segStart seg) el acc
+    where el= ShapeSegment seg
 
 
 directionOfVector :: Vector -> Direction
@@ -69,7 +73,7 @@ segmentDirection seg = case (_segEnd seg ^-^ _segStart seg, _segKind seg) of
 
 vectorsForAnchor :: Anchor -> Direction -> [Vector]
 vectorsForAnchor a dir = case (a, dir) of
-  (AnchorMulti, _) -> [up, right, down, left]
+  (_, _) -> [up, right, down, left]
   (AnchorSecondDiag, _) ->
       negate <$> vectorsForAnchor AnchorFirstDiag dir
 
@@ -137,7 +141,6 @@ data ShapeTrace = ShapeTrace
   , shapeFound             :: S.Set Shape
   }
 
-
 emptyShapeTrace :: ShapeTrace
 emptyShapeTrace = ShapeTrace
   { shapeIndexInHistory = mempty
@@ -166,7 +169,7 @@ withShapeInTrace shape action = do
   return result
   where
     newIndexHistory Nothing history = M.delete shape history
-    newIndexHistory (Just ix) history = M.insert shape ix history
+    newIndexHistory (Just i) history = M.insert shape i history
 
     enter strace = strace
         { shapeIndexInHistory =
@@ -206,13 +209,13 @@ modifyShapePath f shape = do
 rememberChosenPath :: (MonadState ShapeTrace m, Functor m)
                    => Point -> ShapeElement -> m Bool
 rememberChosenPath = modifyShapePath . inserter where
-  inserter pt set = (S.member pt set, S.insert pt set)
+  inserter pt s = (S.member pt s, S.insert pt s)
 
 
 forgetChosenPath :: (MonadState ShapeTrace m, Functor m)
                  => Point -> ShapeElement -> m ()
 forgetChosenPath = modifyShapePath . deleter where
-  deleter pt set = ((), S.delete pt set)
+  deleter pt s = ((), S.delete pt s)
 
 
 isPathAlreadyVisited :: (MonadState ShapeTrace m, Functor m)
@@ -226,9 +229,9 @@ isPathAlreadyVisited pt el =
 -- after executing the sub action.
 withIncomingPoint :: (MonadState ShapeTrace m, Functor m)
                   => Point -> ShapeElement ->  m a -> m a
-withIncomingPoint pt shape act = do
+withIncomingPoint pt shape a = do
     _previously <- rememberChosenPath pt shape
-    ret <- act
+    ret <- a
     {-unless previously $-}
     forgetChosenPath pt shape
     return ret
@@ -257,11 +260,11 @@ shapesAfterCurrent locations (previousPoint, shape) =
 
 
 saveLoopingUpToIndex :: (MonadState ShapeTrace m) => Int -> m ()
-saveLoopingUpToIndex ix = modify go where
+saveLoopingUpToIndex i = modify go where
   go strace = strace { shapeFound = S.insert shape $ shapeFound strace }
     where
       shape = normalizeClosedShape $ Shape shapeElems True
-      shapeElems = take (shapeTraceSize strace - ix) $ shapeTrace strace
+      shapeElems = take (shapeTraceSize strace - i) $ shapeTrace strace
 
 
 -- | Detect if a current shape is in the history meaning that
@@ -295,6 +298,34 @@ digChild locations parentElem child = do
   unless alreadyVisited $ do
     _ <- rememberChosenPath branchPoint parentElem
     followShape locations (_followOrigin child, _followShape child)
+
+toGraph :: M.Map Point Anchor -> S.Set Segment
+        -> Graph Point Anchor Segment
+toGraph anchors segs = flip execState baseGraph graphCreator where
+  baseGraph = graphOfVertices anchors
+
+  graphCreator = do
+    F.traverse_ linkSegments segs
+    F.traverse_ linkAnchors $ M.assocs anchors
+
+  linkOf p1 p2 | p1 < p2 = (p1, p2)
+               | otherwise = (p2, p1)
+
+  linkAnchors (p, anchor) = F.traverse_ createLinks nextPoints where
+    nextPoints = nextPointAfterAnchor (V2 (-1) (-1)) p anchor
+    createLinks nextPoint = do
+      nextExist <- has (vertices . ix nextPoint) <$> get
+      alreadyLinked <- has (edges . ix (linkOf p nextPoint)) <$> get
+      when (nextExist && not alreadyLinked) $
+         edges . at (linkOf p nextPoint) ?= mempty
+
+  linkSegments seg = case nextPointAfterSegment (V2 (-1) (-1)) seg of
+    [(p1, _), (p2, _)] -> do
+      vertices . at p1 ?= AnchorPoint
+      vertices . at p2 ?= AnchorPoint
+      edges . at (linkOf p1 p2) ?= seg
+    _ -> return ()
+    
 
 
 -- | Main call of the reconstruction function
