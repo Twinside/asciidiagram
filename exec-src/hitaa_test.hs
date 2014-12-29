@@ -1,15 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fwarn-unused-binds #-}
 
-import Control.Applicative( (<$>) )
 import Control.Monad( foldM )
-import Data.Monoid( (<>) )
+import Data.Monoid( (<>), mempty )
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.IO as TIO
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
 import Text.AsciiDiagram.SvgRender
 import Text.Groom
 import Graphics.Svg
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as H
+import Text.Blaze.Html.Renderer.Text
 
 test0 :: T.Text
 test0 =
@@ -84,25 +87,13 @@ test5 =
     "+++++++++++++++\n" <>
     "++++++++++++++\n"
 
-tag :: String -> ShowS -> ShowS
-tag tagName content =
-    ('<':) . (tagName++) . ('>':) .
-        content . 
-    ("</" ++) . (tagName++) . ('>':)
-
-html, body, pre :: ShowS -> ShowS
-pre = tag "pre"
-body = tag "body"
-html = tag "html"
-
-img :: String -> ShowS
-img href = ("<img src=\""++) . (href++) . ("\" />"++)
-
 toSvg :: [(String, T.Text)] -> IO ()
 toSvg lst = do
-    hDoc <- html . body <$> foldM go id lst
-    writeFile "test.html" $ hDoc ""
+    hDoc <- foldM go mempty lst
+    let html = renderHtml . H.html $ H.body hDoc
+    TIO.writeFile "test.html" html
   where
+    {-go :: Html -> (String, T.Text) -> IO Html-}
     go acc (name, content) = do
       let parsed = parseText content
           reconstructed =
@@ -116,7 +107,9 @@ toSvg lst = do
       putStrLn "\nReconstructed\n------"
       putStrLn $ groom reconstructed
       saveXmlFile fileName $ shapesToSvgDocument reconstructed
-      return $ acc . img fileName . pre (T.unpack content ++)
+      return $ acc
+            <> H.img H.! H.href (H.toValue fileName)
+            <> H.pre (H.toHtml content)
 
 testList :: [(String, T.Text)]
 testList =
