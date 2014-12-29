@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Text.AsciiDiagram.Graph
   ( Graph( .. )
+  , PlanarVertice( .. )
   , graphOfVertices
   , extractAllPrimitives
   , addVertice
@@ -13,8 +14,7 @@ module Text.AsciiDiagram.Graph
 import Control.Applicative( (<$>) )
 import Control.Monad( forM_, when )
 import Control.Monad.State.Strict( execState )
-import Control.Monad.State.Class( MonadState
-                                , gets)
+import Control.Monad.State.Class( MonadState )
 import Data.Function( on )
 import Data.Maybe( fromMaybe )
 import Data.Monoid( Monoid( .. ), mempty )
@@ -33,11 +33,15 @@ import Control.Lens( Lens'
                    , use
                    )
 
+{-import Debug.Trace-}
+{-import Text.Printf-}
+{-import Text.Groom-}
+
 data Graph vertex vinfo edgeInfo = Graph
   { _vertices :: M.Map vertex vinfo
   , _edges    :: M.Map (vertex, vertex) edgeInfo
   }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 vertices :: Lens' (Graph vertex vinfo edgeInfo) (M.Map vertex vinfo)
 vertices = lens _vertices setVertices where
@@ -96,7 +100,7 @@ data MinimalCycleFinderState v vi ei = MinimalCycleFinderState
   , _foundCycles    :: [Cycle v]
   }
 
-emptyCycleFinderState :: (Ord v)
+emptyCycleFinderState :: (Ord v, Show v, Show vi, Show ei)
                       => Graph v vi ei -> MinimalCycleFinderState v vi ei 
 emptyCycleFinderState g = MinimalCycleFinderState
   { _adjacency = adjacencyMapOfGraph g
@@ -148,7 +152,7 @@ isInCycle :: (Ord v, MonadState (MinimalCycleFinderState v vi ei) m)
 isInCycle a b = use $ cycleEdges . contains (linkOf a b)
 
 removeEdge :: ( MonadState (MinimalCycleFinderState v vi ei) m
-              , Ord v )
+              , Ord v, Show v )
            => v -> v -> m ()
 removeEdge a b = do
   let remEdge p (n, s) = (n - 1, S.delete p s)
@@ -158,10 +162,10 @@ removeEdge a b = do
 
 
 removeVertice :: ( MonadState (MinimalCycleFinderState v vi ei) m
-                 , Ord v )
+                 , Ord v
+                 , Show v )
               => v -> m ()
-removeVertice v =
-  graph . vertices . at v .= Nothing
+removeVertice v = graph . vertices . at v .= Nothing
 
 adjacencyInfoOfVertice :: ( MonadState (MinimalCycleFinderState v vi ei) m
                           , Ord v
@@ -172,7 +176,8 @@ adjacencyInfoOfVertice v =
 
 extractFilament :: ( MonadState (MinimalCycleFinderState v vi ei) m
                    , Ord v
-                   , Functor m )
+                   , Functor m
+                   , Show v)
                 => v -> v -> m [v]
 extractFilament fromVertice toVertice = do
   mustCycle <- isInCycle fromVertice toVertice
@@ -187,51 +192,54 @@ extractFilament fromVertice toVertice = do
   else
     follow mustCycle [] fromVertice
   where
-    follow mustCycle trace currentVertice = do
+    follow mustCycle history currentVertice = do
       (count, adjacent) <- adjacencyInfoOfVertice currentVertice
       case count of
         0 -> do
           removeVertice currentVertice
-          return $ currentVertice : trace
+          return $ currentVertice : history
 
         1 -> do
           let nextVertice = S.findMin adjacent
           inCycle <- isInCycle currentVertice nextVertice
           if mustCycle && not inCycle then
-            return $ currentVertice : trace
+            return $ currentVertice : history
           else do
             removeEdge currentVertice nextVertice
             removeVertice currentVertice
-            follow mustCycle (currentVertice : trace) nextVertice
+            follow mustCycle (currentVertice : history) nextVertice
 
         _ ->
-          return $ currentVertice : trace
+          return $ currentVertice : history
 
-class Ord v => PlanarVertice v where
-  getClockwiseMost :: M.Map v (Int, S.Set v) -> Maybe v -> v
+class (Ord v, Show v) => PlanarVertice v where
+  getClockwiseMost :: S.Set v -> Maybe v -> v
                    -> Maybe v
-  getCounterClockwiseMost :: M.Map v (Int, S.Set v) -> Maybe v -> v
+  getCounterClockwiseMost :: S.Set v -> Maybe v -> v
                           -> Maybe v
 
 findClockwiseMost :: ( MonadState (MinimalCycleFinderState v vi ei) m
+                     , Functor m
                      , PlanarVertice v )
                   => Maybe v -> v -> m (Maybe v)
 findClockwiseMost mv v = do
-  adj <- gets _adjacency
+  adj <- maybe mempty snd <$> use (adjacency . at v)
   return $ getClockwiseMost adj mv v
 
 findCounterClockwiseMost
     :: ( MonadState (MinimalCycleFinderState v vi ei) m
+       , Functor m
        , PlanarVertice v )
     => Maybe v -> v -> m (Maybe v)
 findCounterClockwiseMost mv v = do
-  adj <- gets _adjacency
+  adj <- maybe mempty snd <$> use (adjacency . at v)
   return $ getCounterClockwiseMost adj mv v
 
 extractFilamentFromMiddle
   :: ( MonadState (MinimalCycleFinderState v vi ei) m
      , Functor m
-     , Ord v )
+     , Ord v
+     , Show v )
   => v -> v -> m [v]
 extractFilamentFromMiddle = go where
   go prev curr = do
@@ -244,25 +252,25 @@ extractFilamentFromMiddle = go where
     else
       go curr $ S.elemAt 1 adjs
 
-extractPrimitive :: ( MonadState (MinimalCycleFinderState v vi ei) m
-                    , Functor m 
-                    , PlanarVertice v )
-                 => v -> m ()
-extractPrimitive rootNode = do
+extractCycle :: ( MonadState (MinimalCycleFinderState v vi ei) m
+                , Functor m 
+                , PlanarVertice v )
+             => v -> m ()
+extractCycle rootNode = do
   startNode <- findClockwiseMost Nothing rootNode
   let starting = fromMaybe rootNode startNode
 
-      follow _trace prevVertice Nothing = do
+      follow _history prevVertice Nothing = do
         filament <- extractFilament prevVertice prevVertice
         foundFilaments %= (filament:)
-      follow trace _ (Just v) | v == rootNode = do
-        foundCycles %= (trace :)
-        forM_ (zip trace $ tail trace) $ \(a, b) ->
+      follow history _ (Just v) | v == rootNode = do
+        foundCycles %= (history:)
+        forM_ (zip history $ tail history) $ \(a, b) ->
           cycleEdges . contains (linkOf a b)  .= True
         removeEdge rootNode starting
         extractIfAlone rootNode
         extractIfAlone starting
-      follow trace prevVertice (Just v) = do
+      follow history prevVertice (Just v) = do
         wasVisited <- use $ visited . contains v
         if wasVisited then do
           filament <- extractFilamentFromMiddle starting rootNode
@@ -270,17 +278,74 @@ extractPrimitive rootNode = do
         else do
           nextVertice <-
               findCounterClockwiseMost (Just prevVertice) v
-          follow (v:trace) v nextVertice
+          follow (v:history) v nextVertice
 
   follow [rootNode] rootNode startNode
   where
     extractIfAlone node = do
       (startCount, adjs) <- adjacencyInfoOfVertice node
       when (startCount == 1) $ do
-        filament <- extractFilament node $ S.findMin adjs
-        foundFilaments %= (filament:)
+        _filament <- extractFilament node $ S.findMin adjs
+        return ()
+        {-foundFilaments %= (filament:)-}
 
-extractAllPrimitives :: (PlanarVertice v)
+{-
+Vertex GetClockwiseMost (Vertex vprev, Vertex vcurr)
+{
+    if (vcurr has no adjacent vertices) return nil;
+    dcurr = vcurr.position - vprev.position;
+    vnext = adjacent vertex of vcurr not equal to vprev;
+    dnext = vnext.position - vcurr.position;
+    vcurrIsConvex = dnext.DotPerp(dcurr) <= 0;
+    for each adjacent vertex vadj of vcurr do
+    {
+        dadj = vadj.position - vcurr.position;
+        if (vcurrIsConvex)
+        {
+            if (pred1 dcurr.DotPerp(dadj) dnext.DotPerp(dadj))
+            {
+                vnext = vadj;
+                dnext = dadj;
+                vcurrIsConvex = dnext.DotPerp(dCurr) <= 0;
+            }
+        }
+        else
+        {
+            if (pred2 dcurr.DotPerp(dadj) dnext.DotPerp(dadj))
+            {
+                vnext = vadj;
+                dnext = dadj;
+                vcurrIsConvex = dnext.DotPerp(dCurr) <= 0;
+            }
+        }
+    }
+    return vnext;
+}
+-}
+{- 
+getMostByOrder :: (Num n)
+               => (n -> n -> Bool) -> (n -> n -> Bool)
+               -> S.Set (V2 n) -> Maybe (V2 n) -> V2 n
+               -> Maybe (V2 n)
+
+getMostByOrder pred1 pred2  point = S.fold go Nothing where
+  go acc pt | pt == prev =
+
+instance Num a => PlanarVertice (V2 a) where
+  getClockwiseMost adj prev p =
+      safeHead . (\a -> trace (printf "     CW:%s %s -> %s" dir (show p) (show a)) a)  . findClockwisePossible adj prev $ p
+      where
+        dir = show $ do
+          pp <- prev
+          return $ directionOfVector $ signum <$> p ^-^ pp
+  getCounterClockwiseMost adj prev p =
+      safeHead . (\a -> trace (printf "     CCW:%s %s -> %s" dir (show p) (show a)) a) . reverse . findClockwisePossible adj prev $ p
+      where
+        dir = show $ do
+          pp <- prev
+          return $ directionOfVector $ signum <$> p ^-^ pp
+ -}
+extractAllPrimitives :: (PlanarVertice v, Show ei, Show vi)
                      => Graph v vi ei -> ([Cycle v], [Filament v])
 extractAllPrimitives initGraph = extract $ execState go initialState where
   initialState = emptyCycleFinderState initGraph
@@ -290,5 +355,12 @@ extractAllPrimitives initGraph = extract $ execState go initialState where
     vs <- use $ graph . vertices
     if M.null vs then return ()
     else do
-      extractPrimitive $ fst $ M.findMin vs
+      let (toFollow, _) = M.findMin vs
+      (adjCount, _) <- adjacencyInfoOfVertice toFollow
+      case adjCount of
+        0 -> removeVertice toFollow
+        1 -> do
+          filament <- extractFilament toFollow toFollow
+          foundFilaments %= (filament:)
+        _ -> extractCycle toFollow
       go

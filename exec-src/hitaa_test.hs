@@ -7,7 +7,6 @@ import Data.Monoid( (<>) )
 import qualified Data.Text as T
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
-import Text.AsciiDiagram.Deduplicator
 import Text.AsciiDiagram.SvgRender
 import Text.Groom
 import Graphics.Svg
@@ -39,9 +38,11 @@ test2 =
 test3 :: T.Text
 test3 =
     "                   \n" <>
-    "  +-*----------+   \n" <>
+    "  +--*---------+   \n" <>
+    "  |            |   \n" <>
     "  |            |   \n" <>
     "  |  /-----\\   +   \n" <>
+    "  |  |     |   |   \n" <>
     "  |  |     |   |   \n" <>
     "  |  \\-----/   |   \n" <>
     "  +-----+------/   \n"
@@ -83,21 +84,6 @@ test5 =
     "+++++++++++++++\n" <>
     "++++++++++++++\n"
 
-analyze :: T.Text -> IO ()
-analyze txt = do
-  let parsed = parseText txt
-      reconstructed =
-          reconstruct (anchorMap parsed) $ segmentSet parsed
-      deduped = removeLargeCycle reconstructed
-  putStrLn "================================="
-  putStrLn $ T.unpack txt
-  putStrLn "\nParsed:\n-------"
-  putStrLn $ groom parsed
-  putStrLn "\nReconstructed\n------"
-  putStrLn $ groom reconstructed
-  putStrLn "\nDeduped\n------"
-  putStrLn $ groom deduped
-
 tag :: String -> ShowS -> ShowS
 tag tagName content =
     ('<':) . (tagName++) . ('>':) .
@@ -121,25 +107,29 @@ toSvg lst = do
       let parsed = parseText content
           reconstructed =
               reconstruct (anchorMap parsed) $ segmentSet parsed
-          deduped = removeLargeCycle reconstructed
+          {-deduped = removeLargeCycle reconstructed-}
           fileName = name ++ ".svg"
-      saveXmlFile fileName $ shapesToSvgDocument deduped
+      putStrLn "================================="
+      putStrLn $ T.unpack content
+      putStrLn "\nParsed:\n-------"
+      putStrLn $ groom parsed
+      putStrLn "\nReconstructed\n------"
+      putStrLn $ groom reconstructed
+      saveXmlFile fileName $ shapesToSvgDocument reconstructed
       return $ acc . img fileName . pre (T.unpack content ++)
 
 testList :: [(String, T.Text)]
 testList =
-  [ ("t0", test0)
-  , ("t1", test1)
-  , ("t2", test2)
-  , ("t3", test3)
-  , ("tsmall", testSmall)
-  , ("tmedium", testMedium)
-  {-, ("t4", test4)-}
-  {-, ("t5", test5)-}
-  ]
+    [("t0", test0)] <>
+    [("t1", test1)] <>
+    [("t2", test2)] <>
+    [("t3", test3)] <>
+    [("tsmall", testSmall)] <>
+    [("tmedium", testMedium)] <>
+    [("t4", test4)] <>
+    [("t5", test5)] <>
+    []
 
 main :: IO ()
-main = do
-  mapM_ (analyze . snd) testList
-  toSvg testList
+main = toSvg testList
 
