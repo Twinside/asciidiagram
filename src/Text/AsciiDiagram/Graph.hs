@@ -119,7 +119,7 @@ visited = lens _visited setter where
 
 foundFilaments :: Lens' (MinimalCycleFinderState v vi ei)
                         [Filament v]
-foundFilaments = lens _foundCycles setter where
+foundFilaments = lens _foundFilaments setter where
   setter a b = a { _foundFilaments = b }
 
 foundCycles :: Lens' (MinimalCycleFinderState v vi ei)
