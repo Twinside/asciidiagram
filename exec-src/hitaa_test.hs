@@ -17,7 +17,7 @@ import Text.Blaze.Html.Renderer.Text
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
 import Text.AsciiDiagram.SvgRender
-import Text.Groom
+{-import Text.Groom-}
 import Graphics.Svg
 
 test0 :: T.Text
@@ -107,17 +107,18 @@ toSvg lst = do
       let parsed = parseText content
           reconstructed =
               reconstruct (anchorMap parsed) $ segmentSet parsed
-          {-deduped = removeLargeCycle reconstructed-}
           fileName = name ++ ".svg"
           tlines = T.lines content
           width = maximum $ fmap T.length tlines
       putStrLn name
+
       {-putStrLn "================================="-}
       {-putStrLn $ T.unpack content-}
       {-putStrLn "\nParsed:\n-------"-}
       {-putStrLn $ groom parsed-}
       {-putStrLn "\nReconstructed\n------"-}
       {-putStrLn $ groom reconstructed-}
+
       saveXmlFile (testOutputFolder </> fileName) $
           shapesToSvgDocument (width, length tlines) reconstructed
       return $ acc

@@ -34,6 +34,7 @@ import Control.Lens
 
 {-import Debug.Trace-}
 {-import Text.Printf-}
+{-import Text.Groom-}
 
 data Direction
   = LeftToRight

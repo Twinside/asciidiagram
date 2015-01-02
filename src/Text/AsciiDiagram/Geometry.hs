@@ -50,7 +50,7 @@ instance Show Segment where
         draw = shows dr
 
 instance Monoid Segment where
-    mempty = Segment 0 0 SegmentVertical SegmentDashed
+    mempty = Segment 0 0 SegmentVertical SegmentSolid
     mappend (Segment a _ _ _) (Segment _ b k d) =
         Segment a b k d
 
