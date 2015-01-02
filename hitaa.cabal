@@ -56,4 +56,6 @@ Test-Suite test
                  , groom
                  , svg-tree
                  , blaze-html
+                 , directory
+                 , filepath
 

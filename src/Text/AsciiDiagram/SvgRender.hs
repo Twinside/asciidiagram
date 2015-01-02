@@ -11,16 +11,28 @@ import Graphics.Svg.Types( HasDrawAttributes( .. )
 import Codec.Picture( PixelRGBA8( PixelRGBA8 ) )
 import qualified Graphics.Svg.Types as Svg
 import qualified Data.Set as S
-import Linear( V2( .. ) )
+import Linear( V2( .. )
+             , (^+^)
+             , (^-^)
+             , (^*)
+             , perp
+             , normalize
+             )
 import Control.Lens( zoom, (.=) )
 
 import Text.AsciiDiagram.Geometry
 
-type GridScale = (Float, Float)
+data GridSize = GridSize
+  { _gridCellWidth        :: !Float
+  , _gridCellHeight       :: !Float
+  , _gridShapeContraction :: !Float
+  }
+  deriving (Eq, Show)
 
-toSvg :: GridScale -> Point -> Svg.RPoint
-toSvg (sx, sy) (V2 x y) =
-  V2 (sx * fromIntegral x) (sy * fromIntegral y)
+toSvg :: GridSize -> Point -> Svg.RPoint
+toSvg s (V2 x y) =
+  V2 (_gridCellWidth s * fromIntegral x)
+     (_gridCellHeight s * fromIntegral y)
 
 applyDefaultShapeDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
@@ -32,33 +44,177 @@ applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
     toLC r g b a =
         toL . ColorRef $ PixelRGBA8 r g b a
 
+startPointOf :: ShapeElement -> Point
+startPointOf (ShapeAnchor p _) = p
+startPointOf (ShapeSegment seg) = _segStart seg
 
-shapeToTree :: GridScale -> Shape -> Svg.Tree
+manathanDistance :: Point -> Point -> Int
+manathanDistance a b = x + y where
+  V2 x y = abs <$> a ^-^ b
+
+isNearBy :: Point -> Point -> Bool
+isNearBy a b = manathanDistance a b <= 1
+
+initialPrevious :: Bool -> [ShapeElement] -> Maybe Point
+initialPrevious False _ = Nothing
+initialPrevious True [] = Nothing
+initialPrevious True lst@(x:_) = Just point
+  where
+    sp = startPointOf x
+
+    point = case last lst of
+      ShapeAnchor pp _ -> pp
+      ShapeSegment seg
+        | manathanDistance sp (_segStart seg) <
+          manathanDistance sp (_segEnd seg) -> _segStart seg
+      ShapeSegment seg -> _segEnd seg
+
+
+
+swapSegment :: Segment -> Segment
+swapSegment seg =
+  seg { _segStart = _segEnd seg, _segEnd = _segStart seg }
+
+reorderShapePoints :: Shape -> [(Maybe Point, ShapeElement)]
+reorderShapePoints shape = outList where
+  outList = go initialPrev elements 
+  elements = shapeElements shape
+  initialPrev = initialPrevious (shapeIsClosed shape) elements
+
+  go _ [] = []
+  go prev (a@(ShapeAnchor p _):rest) =
+      (prev, a) : go (Just p) rest
+  go prev (s@(ShapeSegment seg):rest)
+    | start == _segEnd seg = (prev, s) : go (Just start) rest
+      where start = _segStart seg
+  go prev@(Just prevPoint) (s@(ShapeSegment seg):rest)
+    | prevPoint `isNearBy` start = 
+        (prev, s) : go (Just end) rest
+    | otherwise = 
+        (prev, ShapeSegment $ swapSegment seg) : go (Just start) rest
+      where start = _segStart seg
+            end = _segEnd seg
+
+  go Nothing (s@(ShapeSegment seg):rest@(nextShape:_)) =
+    case nextShape of
+      ShapeAnchor p _ | p `isNearBy` start ->
+          (Nothing, ShapeSegment $ swapSegment seg) : go (Just start) rest
+      ShapeAnchor _ _ ->
+          (Nothing, s) : go (Just $ _segEnd seg) rest
+      ShapeSegment _ -> (Nothing, s) : go (Just $ _segEnd seg) rest
+      where start = _segStart seg
+  go Nothing [e@(ShapeSegment _)] = [(Nothing, e)]
+
+associateNextPoint :: Bool -> [(a, ShapeElement)]
+                   -> [(a, ShapeElement, Maybe Point)]
+associateNextPoint isClosed elements = go elements where
+  startingPoint =
+    Just . startPointOf . head $ map snd elements
+
+  go [] = []
+  go [(p, s)] 
+    | isClosed = [(p, s, startingPoint)]
+    | otherwise = [(p, s, Nothing)]
+  go ((p, s):xs@((_, y):_)) =
+    (p, s, Just $ startPointOf y) : go xs
+
+-- >
+-- >       ^ perp:(0, -n)
+-- >       |
+-- > (x, y)|                  (x + n, y)
+-- >       +-------------------+ b
+-- >      a|
+-- >       v correction
+--
+correctionVectorOf :: Integral a => GridSize -> V2 a -> V2 a -> V2 Float
+correctionVectorOf size a b = normalize dir ^* _gridShapeContraction size
+  where
+    dir = fromIntegral . negate <$> perp (b ^-^ a)
+
+startPoint :: GridSize -> [(Maybe Point, ShapeElement, Maybe Point)]
+           -> Svg.RPoint
+startPoint gscale shapeElems = case shapeElems of
+    [] -> V2 0 0
+    (_, ShapeSegment seg, _):_ -> pp ^+^ vc where
+       vc = correctionVector (_segStart seg) (_segEnd seg)
+       pp = toS $ _segStart seg 
+    (Just before, ShapeAnchor p _, Just after):_ -> toS p ^+^ combined
+        where v1 = correctionVector before p
+              v2 = correctionVector p after
+              combined | v1 == v2 = v1
+                       | otherwise = v1 ^+^ v2
+    (_, ShapeAnchor p _, _):_ -> toS p
+  where
+    correctionVector = correctionVectorOf gscale
+    toS = toSvg gscale
+
+anchorCorrection :: GridSize -> Point -> Point -> Point
+                 -> Svg.RPoint
+anchorCorrection scale before p after
+  | v1 == v2 = v1
+  | otherwise = v1 ^+^ v2
+  where v1 = correctionVectorOf scale before p
+        v2 = correctionVectorOf scale p after
+
+moveTo, lineTo :: Svg.RPoint -> Svg.Path
+moveTo p = Svg.MoveTo Svg.OriginAbsolute [p]
+lineTo p = Svg.LineTo Svg.OriginAbsolute [p]
+
+smoothCurveTo :: Svg.RPoint -> Svg.RPoint -> Svg.Path
+smoothCurveTo p1 p =
+  Svg.SmoothCurveTo Svg.OriginAbsolute [(p1, p)]
+
+shapeClosing :: Shape -> [Svg.Path]
+shapeClosing Shape { shapeIsClosed = True } = [Svg.EndPath]
+shapeClosing _ = []
+
+segmentCorrectionVector :: GridSize -> Segment -> Svg.RPoint
+segmentCorrectionVector gscale seg | _segStart seg == _segEnd seg =
+  case _segKind seg of
+    SegmentHorizontal -> V2 0 $ _gridShapeContraction gscale
+    SegmentVertical -> V2 (negate $ _gridShapeContraction gscale) 0
+segmentCorrectionVector gscale seg =
+    correctionVectorOf gscale (_segStart seg) (_segEnd seg)
+
+shapeToTree :: GridSize -> Shape -> Svg.Tree
 shapeToTree gscale shape =
     Svg.Path $ Svg.PathPrim mempty pathCommands where
   toS = toSvg gscale
+  correctionVector = correctionVectorOf gscale
 
-  shapeElems = shapeElements shape
-
-  close | shapeIsClosed shape = [Svg.EndPath]
-        | otherwise = []
-  
-  startPoint = firstPointOfShape shapeElems
-
-  moveTo p = Svg.MoveTo Svg.OriginAbsolute [toS p]
-  lineTo p = Svg.LineTo Svg.OriginAbsolute [toS p]
+  shapeElems = associateNextPoint (shapeIsClosed shape)
+             $ reorderShapePoints shape
 
   pathCommands =
-    moveTo startPoint : fmap toPath shapeElems ++ close
+    moveTo (startPoint gscale shapeElems)
+        : fmap toPath shapeElems ++ shapeClosing shape
 
-  toPath (ShapeAnchor p _) = lineTo p
-  toPath (ShapeSegment seg) = lineTo $ _segEnd seg
+  toPath (_, ShapeSegment seg, _) = lineTo $ vc ^+^ toS (_segEnd seg)
+    where vc = segmentCorrectionVector gscale seg
+  toPath (before, ShapeAnchor p a, after) = case a of
+      AnchorPoint -> straightCorner before p after
+      AnchorMulti -> straightCorner before p after
+      AnchorFirstDiag -> curveCorner before p after
+      AnchorSecondDiag -> curveCorner before p after
 
-shapesToSvgDocument :: S.Set Shape -> Svg.Document
-shapesToSvgDocument shapes = Document	 
+  straightCorner (Just before) p (Just after) | shapeIsClosed shape =
+      lineTo $ anchorCorrection gscale before p after ^+^ toS p
+  straightCorner (Just before) p _ | shapeIsClosed shape =
+      lineTo $ correctionVector before p ^+^ toS p
+  straightCorner _ p _ = lineTo $ toS p
+
+  curveCorner (Just before) p (Just after) =
+      smoothCurveTo (toS p) $ toS after ^+^ correction
+    where correction = anchorCorrection gscale before p after
+  curveCorner (Just before) p Nothing = smoothCurveTo (toS p) $ toS p ^+^ vec
+    where vec = correctionVector before p
+  curveCorner _ p _ = lineTo $ toS p
+
+shapesToSvgDocument :: (Int, Int) -> S.Set Shape -> Svg.Document
+shapesToSvgDocument (w, h) shapes = Document	 
   { _viewBox = Nothing
-  , _width = Just $ Svg.Num 200
-  , _height = Just $ Svg.Num 100
+  , _width = toSvgSize _gridCellWidth w
+  , _height = toSvgSize _gridCellHeight h
   , _elements =
       applyDefaultShapeDrawAttr . shapeToTree scale <$> S.toList shapes
   , _definitions = mempty
@@ -66,5 +222,13 @@ shapesToSvgDocument shapes = Document
   , _styleText  = ""
   , _styleRules = []
   }
-  where scale = (11, 11)
+  where
+    toSvgSize accessor var =
+        Just . Svg.Num $ fromIntegral var * accessor scale + 5
+
+    scale = GridSize
+      { _gridCellWidth = 11
+      , _gridCellHeight = 14
+      , _gridShapeContraction = 1.5
+      }
 

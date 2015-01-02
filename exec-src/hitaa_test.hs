@@ -1,18 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -fwarn-unused-binds #-}
+{-# LANGUAGE TupleSections #-}
 
-import Control.Monad( foldM )
+import Control.Applicative( (<$>) )
+import Control.Monad( foldM, forM )
 import Data.Monoid( (<>), mempty )
 import qualified Data.Text as T
+import qualified Data.Text.IO as STIO
 import qualified Data.Text.Lazy.IO as TIO
+import System.Directory( getDirectoryContents
+                       , createDirectoryIfMissing )
+import System.FilePath( (</>) )
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as H
+import Text.Blaze.Html.Renderer.Text
+
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
 import Text.AsciiDiagram.SvgRender
 import Text.Groom
 import Graphics.Svg
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as H
-import Text.Blaze.Html.Renderer.Text
 
 test0 :: T.Text
 test0 =
@@ -87,28 +93,35 @@ test5 =
     "+++++++++++++++\n" <>
     "++++++++++++++\n"
 
+testOutputFolder :: FilePath
+testOutputFolder = "test_output"
+
 toSvg :: [(String, T.Text)] -> IO ()
 toSvg lst = do
+    createDirectoryIfMissing True testOutputFolder
     hDoc <- foldM go mempty lst
     let html = renderHtml . H.html $ H.body hDoc
-    TIO.writeFile "test.html" html
+    TIO.writeFile (testOutputFolder </> "test.html") html
   where
-    {-go :: Html -> (String, T.Text) -> IO Html-}
     go acc (name, content) = do
       let parsed = parseText content
           reconstructed =
               reconstruct (anchorMap parsed) $ segmentSet parsed
           {-deduped = removeLargeCycle reconstructed-}
           fileName = name ++ ".svg"
-      putStrLn "================================="
-      putStrLn $ T.unpack content
-      putStrLn "\nParsed:\n-------"
-      putStrLn $ groom parsed
-      putStrLn "\nReconstructed\n------"
-      putStrLn $ groom reconstructed
-      saveXmlFile fileName $ shapesToSvgDocument reconstructed
+          tlines = T.lines content
+          width = maximum $ fmap T.length tlines
+      putStrLn name
+      {-putStrLn "================================="-}
+      {-putStrLn $ T.unpack content-}
+      {-putStrLn "\nParsed:\n-------"-}
+      {-putStrLn $ groom parsed-}
+      {-putStrLn "\nReconstructed\n------"-}
+      {-putStrLn $ groom reconstructed-}
+      saveXmlFile (testOutputFolder </> fileName) $
+          shapesToSvgDocument (width, length tlines) reconstructed
       return $ acc
-            <> H.img H.! H.href (H.toValue fileName)
+            <> H.img H.! H.src (H.toValue fileName)
             <> H.pre (H.toHtml content)
 
 testList :: [(String, T.Text)]
@@ -123,6 +136,16 @@ testList =
     [("t5", test5)] <>
     []
 
+loadTests :: IO [(String, T.Text)]
+loadTests = do
+  let folder = "tests" </> "text"
+  content <-
+      filter (`notElem` [".", ".."]) <$> getDirectoryContents folder
+  forM content $ \f ->
+     (f,) <$> STIO.readFile (folder </> f)
+
 main :: IO ()
-main = toSvg testList
+main = do
+  tests <- loadTests 
+  toSvg $ testList ++ tests
 

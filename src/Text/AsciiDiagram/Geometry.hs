@@ -26,25 +26,33 @@ data SegmentKind
   | SegmentVertical
   deriving (Eq, Ord, Show)
 
+data SegmentDraw
+  = SegmentSolid
+  | SegmentDashed
+  deriving (Eq, Ord, Show)
+
 data Segment = Segment
   { _segStart :: {-# UNPACK #-} !Point
   , _segEnd   :: {-# UNPACK #-} !Point
   , _segKind  :: !SegmentKind
+  , _segDraw  :: !SegmentDraw
   }
   deriving (Eq, Ord)
 
 instance Show Segment where
-    showsPrec d (Segment s e k) =
+    showsPrec d (Segment s e k dr) =
       showParen (d >= 10) $
-          showString "Segment " . start . end . kind
+          showString "Segment " . start . end . kind . (' ':) . draw
       where
         start = showParen True $ shows s
         end = showParen True $ shows e
         kind = shows k
+        draw = shows dr
 
 instance Monoid Segment where
-    mempty = Segment 0 0 SegmentVertical
-    mappend (Segment a _ _) (Segment _ b k) = Segment a b k
+    mempty = Segment 0 0 SegmentVertical SegmentDashed
+    mappend (Segment a _ _ _) (Segment _ b k d) =
+        Segment a b k d
 
 data ShapeElement
   = ShapeAnchor !Point !Anchor

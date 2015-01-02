@@ -135,6 +135,7 @@ segmentManathanLength :: Segment -> Int
 segmentManathanLength seg = x + y where
   V2 x y = abs <$> _segEnd seg ^-^ _segStart seg
 
+
 toGraph :: M.Map Point Anchor -> S.Set Segment
         -> Graph Point ShapeElement Segment
 toGraph anchors segs = execState graphCreator baseGraph where
