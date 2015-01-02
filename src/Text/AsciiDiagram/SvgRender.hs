@@ -44,6 +44,16 @@ applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
     toLC r g b a =
         toL . ColorRef $ PixelRGBA8 r g b a
 
+applyDefaultLineDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
+applyDefaultLineDrawAttr = execState . zoom drawAttr $ do
+    fillColor .= toL Svg.FillNone
+    strokeColor .= toLC 0 0 0 255
+    strokeWidth .= toL (Svg.Num 1)
+  where
+    toL = Last . Just
+    toLC r g b a =
+        toL . ColorRef $ PixelRGBA8 r g b a
+
 startPointOf :: ShapeElement -> Point
 startPointOf (ShapeAnchor p _) = p
 startPointOf (ShapeSegment seg) = _segStart seg
@@ -215,17 +225,23 @@ shapesToSvgDocument (w, h) shapes = Document
   { _viewBox = Nothing
   , _width = toSvgSize _gridCellWidth w
   , _height = toSvgSize _gridCellHeight h
-  , _elements =
-      applyDefaultShapeDrawAttr . shapeToTree scale <$> S.toList shapes
+  , _elements = closedSvg ++ lineSvg
   , _definitions = mempty
   , _description = ""
   , _styleText  = ""
   , _styleRules = []
   }
   where
+    (closed, opened) = S.partition shapeIsClosed shapes
+    closedSvg =
+        applyDefaultShapeDrawAttr . shapeToTree scale <$> S.toList closed
+    lineSvg = 
+        applyDefaultLineDrawAttr . shapeToTree strokeScale <$> S.toList opened
+
     toSvgSize accessor var =
         Just . Svg.Num $ fromIntegral var * accessor scale + 5
 
+    strokeScale = scale { _gridShapeContraction = 0 }
     scale = GridSize
       { _gridCellWidth = 11
       , _gridCellHeight = 14
