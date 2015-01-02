@@ -1,3 +1,5 @@
 dist
 test_output
+cabal.sandbox.config
+out.txt
 
