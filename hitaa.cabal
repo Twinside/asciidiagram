@@ -21,7 +21,6 @@ library
                  , Text.AsciiDiagram.Geometry
                  , Text.AsciiDiagram.Graph
                  , Text.AsciiDiagram.Reconstructor
-                 , Text.AsciiDiagram.Deduplicator
                  , Text.AsciiDiagram.SvgRender
 
   --other-modules: Text.AsciiDiagram.Deduplicator
