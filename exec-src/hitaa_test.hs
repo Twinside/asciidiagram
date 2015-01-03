@@ -17,7 +17,7 @@ import Text.Blaze.Html.Renderer.Text
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
 import Text.AsciiDiagram.SvgRender
-{-import Text.Groom-}
+import Text.Groom
 import Graphics.Svg
 
 test0 :: T.Text
@@ -33,6 +33,30 @@ test1 =
     "|      |\n" <>
     "|      |\n" <>
     "\\------/\n"
+
+testBadEnd :: T.Text
+testBadEnd =
+    "/---\\\n" <>
+    "|   |\n" <>
+    "\\---/\n"
+
+circleEnd :: T.Text
+circleEnd =
+    "/---\\\n" <>
+    "\\---/\n"
+
+verticalCircleEnd :: T.Text
+verticalCircleEnd =
+    "/\\\n" <>
+    "||\n" <>
+    "||\n" <>
+    "\\/\n"
+
+testBadEndStraight :: T.Text
+testBadEndStraight =
+    "+---+\n" <>
+    "|   |\n" <>
+    "+---+\n"
 
 test2 :: T.Text
 test2 =
@@ -112,12 +136,14 @@ toSvg lst = do
           width = maximum $ fmap T.length tlines
       putStrLn name
 
-      {-putStrLn "================================="-}
-      {-putStrLn $ T.unpack content-}
-      {-putStrLn "\nParsed:\n-------"-}
-      {-putStrLn $ groom parsed-}
-      {-putStrLn "\nReconstructed\n------"-}
-      {-putStrLn $ groom reconstructed-}
+      -- {-
+      putStrLn "================================="
+      putStrLn $ T.unpack content
+      putStrLn "\nParsed:\n-------"
+      putStrLn $ groom parsed
+      putStrLn "\nReconstructed\n------"
+      putStrLn $ groom reconstructed
+      -- -}
 
       saveXmlFile (testOutputFolder </> fileName) $
           shapesToSvgDocument (width, length tlines) reconstructed
@@ -127,6 +153,10 @@ toSvg lst = do
 
 testList :: [(String, T.Text)]
 testList =
+    [("circleEnd", circleEnd)] <>
+    [("verticalCircleEnd", verticalCircleEnd)] <>
+    [("tbadend", testBadEnd)] <>
+    [("testBadEndStraight", testBadEndStraight)] <>
     [("t0", test0)] <>
     [("t1", test1)] <>
     [("t2", test2)] <>
@@ -149,4 +179,5 @@ main :: IO ()
 main = do
   tests <- loadTests 
   toSvg $ testList ++ tests
+  {-toSvg [("testBadEndStraight", testBadEndStraight)]-}
 
