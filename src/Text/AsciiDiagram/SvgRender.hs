@@ -145,8 +145,8 @@ startPoint :: GridSize -> [(Maybe Point, ShapeElement, Maybe Point)]
            -> Svg.RPoint
 startPoint gscale shapeElems = case shapeElems of
     [] -> V2 0 0
-    (_, ShapeSegment seg, _):_ -> pp ^+^ vc where
-       vc = correctionVector (_segStart seg) (_segEnd seg)
+    (before, ShapeSegment seg, _):_ -> pp ^+^ vc where
+       vc = segmentCorrectionVector gscale before seg
        pp = toS $ _segStart seg 
     (Just before, ShapeAnchor p _, Just after):_ -> toS p ^+^ combined
         where v1 = correctionVector before p
@@ -178,12 +178,13 @@ shapeClosing :: Shape -> [Svg.Path]
 shapeClosing Shape { shapeIsClosed = True } = [Svg.EndPath]
 shapeClosing _ = []
 
-segmentCorrectionVector :: GridSize -> Segment -> Svg.RPoint
-segmentCorrectionVector gscale seg | _segStart seg == _segEnd seg =
-  case _segKind seg of
-    SegmentHorizontal -> V2 0 $ _gridShapeContraction gscale
-    SegmentVertical -> V2 (negate $ _gridShapeContraction gscale) 0
-segmentCorrectionVector gscale seg =
+segmentCorrectionVector :: GridSize -> Maybe Point -> Segment -> Svg.RPoint
+segmentCorrectionVector gscale before seg | _segStart seg == _segEnd seg =
+  case (before, _segKind seg) of
+    (Just v1, _) -> correctionVectorOf gscale v1 (_segEnd seg)
+    (Nothing, SegmentHorizontal) -> V2 0 $ _gridShapeContraction gscale
+    (Nothing, SegmentVertical) -> V2 (negate $ _gridShapeContraction gscale) 0
+segmentCorrectionVector gscale _ seg =
     correctionVectorOf gscale (_segStart seg) (_segEnd seg)
 
 shapeToTree :: GridSize -> Shape -> Svg.Tree
@@ -199,8 +200,8 @@ shapeToTree gscale shape =
     moveTo (startPoint gscale shapeElems)
         : fmap toPath shapeElems ++ shapeClosing shape
 
-  toPath (_, ShapeSegment seg, _) = lineTo $ vc ^+^ toS (_segEnd seg)
-    where vc = segmentCorrectionVector gscale seg
+  toPath (before, ShapeSegment seg, _) = lineTo $ vc ^+^ toS (_segEnd seg)
+    where vc = segmentCorrectionVector gscale before seg
   toPath (before, ShapeAnchor p a, after) = case a of
       AnchorPoint -> straightCorner before p after
       AnchorMulti -> straightCorner before p after
@@ -213,9 +214,9 @@ shapeToTree gscale shape =
       lineTo $ correctionVector before p ^+^ toS p
   straightCorner _ p _ = lineTo $ toS p
 
-  curveCorner (Just before) p (Just after) =
+  curveCorner _ p (Just after) =
       smoothCurveTo (toS p) $ toS after ^+^ correction
-    where correction = anchorCorrection gscale before p after
+    where correction = correctionVectorOf gscale p after
   curveCorner (Just before) p Nothing = smoothCurveTo (toS p) $ toS p ^+^ vec
     where vec = correctionVector before p
   curveCorner _ p _ = lineTo $ toS p
