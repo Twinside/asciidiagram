@@ -23,6 +23,9 @@ import Control.Lens( zoom, (.=) )
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
 
+{-import Debug.Trace-}
+{-import Text.Printf-}
+{-import Text.Groom-}
 
 data GridSize = GridSize
   { _gridCellWidth        :: !Float
@@ -190,7 +193,10 @@ segmentCorrectionVector gscale _ seg =
     correctionVectorOf gscale (_segStart seg) (_segEnd seg)
 
 shapeToTree :: GridSize -> Shape -> Svg.Tree
-shapeToTree gscale shape =
+shapeToTree gscale shape = 
+{-trace (printf "TOTRANSFER ===============\n%s\nELEMS==============\n%s"-}
+                                    {-(groom shape)-}
+                                    {-(groom shapeElems)) $-}
     Svg.Path $ Svg.PathPrim mempty pathCommands where
   toS = toSvg gscale
   correctionVector = correctionVectorOf gscale

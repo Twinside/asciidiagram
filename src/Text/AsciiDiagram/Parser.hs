@@ -2,7 +2,7 @@
 -- in an ASCII text and the various anchors.
 module Text.AsciiDiagram.Parser( ParsingState( .. )
                                , parseText
-                               , parseBuffer
+                               , parseTextLines
                                ) where
 
 import Control.Applicative( (<$>) )
@@ -47,12 +47,12 @@ isBullet _ = False
 
 
 data ParsingState = ParsingState
-    { anchorMap      :: !(M.Map Point Anchor)
-    , bulletSet      :: !(S.Set Point)
-    , segmentSet     :: !(S.Set Segment)
-    , currentSegment :: !(Maybe Segment)
-    }
-    deriving Show
+  { anchorMap      :: !(M.Map Point Anchor)
+  , bulletSet      :: !(S.Set Point)
+  , segmentSet     :: !(S.Set Segment)
+  , currentSegment :: !(Maybe Segment)
+  }
+  deriving Show
 
 emptyParsingState :: ParsingState
 emptyParsingState = ParsingState
@@ -149,8 +149,8 @@ maximumLineLength :: [T.Text] -> Int
 maximumLineLength [] = 0
 maximumLineLength lst = maximum $ T.length <$> lst
 
-parseBuffer :: [T.Text] -> ParsingState
-parseBuffer lst = flip execState emptyParsingState $ do
+parseTextLines :: [T.Text] -> ParsingState
+parseTextLines lst = flip execState emptyParsingState $ do
   let initialLine = replicate (maximumLineLength lst) Nothing
   lastVerticalLine <- foldM parseLine initialLine $ zip [0 ..] lst
   mapM_ stopVerticalSegment lastVerticalLine 
@@ -158,5 +158,5 @@ parseBuffer lst = flip execState emptyParsingState $ do
 
 -- | Extract the segment information of a given text.
 parseText :: T.Text -> ParsingState
-parseText = parseBuffer . T.lines
+parseText = parseTextLines . T.lines
 

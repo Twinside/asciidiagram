@@ -126,25 +126,13 @@ toSvg lst = do
     TIO.writeFile (testOutputFolder </> "test.html") html
   where
     go acc (name, content) = do
-      let parsed = parseText content
-          reconstructed =
-              reconstruct (anchorMap parsed) $ segmentSet parsed
+      let diagram = parseAsciiDiagram content
           fileName = name ++ ".svg"
-          tlines = T.lines content
-          twidth = maximum $ fmap T.length tlines
       putStrLn name
-
-      -- {-
       putStrLn "================================="
-      putStrLn $ T.unpack content
-      putStrLn "\nParsed:\n-------"
-      putStrLn $ groom parsed
-      putStrLn "\nReconstructed\n------"
-      putStrLn $ groom reconstructed
-      -- -}
+      putStrLn $ groom diagram
 
-      saveXmlFile (testOutputFolder </> fileName) $
-          shapesToSvgDocument (twidth, length tlines) reconstructed
+      saveXmlFile (testOutputFolder </> fileName) $ svgOfDiagram diagram 
       return $ acc
             <> H.img H.! H.src (H.toValue fileName)
             <> H.pre (H.toHtml content)
@@ -176,6 +164,9 @@ loadTests = do
 main :: IO ()
 main = do
   tests <- loadTests 
-  toSvg $ testList ++ tests
-  {-toSvg [("testBadEndStraight", testBadEndStraight)]-}
+  toSvg $ testList ++ tests ++
+      (
+    [("circleEnd", circleEnd)] <>
+    [("verticalCircleEnd", verticalCircleEnd)] <>
+    [])
 
