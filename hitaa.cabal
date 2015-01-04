@@ -17,13 +17,14 @@ cabal-version:       >=1.10
 
 library
   ghc-options: -Wall
-  exposed-modules: Text.AsciiDiagram.Parser
+  exposed-modules: Text.AsciiDiagram
+                 , Text.AsciiDiagram.Parser
                  , Text.AsciiDiagram.Geometry
-                 , Text.AsciiDiagram.Graph
-                 , Text.AsciiDiagram.Reconstructor
-                 , Text.AsciiDiagram.SvgRender
 
-  --other-modules: Text.AsciiDiagram.Deduplicator
+  other-modules: Text.AsciiDiagram.Reconstructor
+               , Text.AsciiDiagram.DiagramCleaner
+               , Text.AsciiDiagram.Graph
+               , Text.AsciiDiagram.SvgRender
 
   -- other-modules:       
   -- other-extensions:    

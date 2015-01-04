@@ -14,9 +14,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as H
 import Text.Blaze.Html.Renderer.Text
 
-import Text.AsciiDiagram.Parser
-import Text.AsciiDiagram.Reconstructor
-import Text.AsciiDiagram.SvgRender
+import Text.AsciiDiagram
 import Text.Groom
 import Graphics.Svg
 
@@ -133,7 +131,7 @@ toSvg lst = do
               reconstruct (anchorMap parsed) $ segmentSet parsed
           fileName = name ++ ".svg"
           tlines = T.lines content
-          width = maximum $ fmap T.length tlines
+          twidth = maximum $ fmap T.length tlines
       putStrLn name
 
       -- {-
@@ -146,7 +144,7 @@ toSvg lst = do
       -- -}
 
       saveXmlFile (testOutputFolder </> fileName) $
-          shapesToSvgDocument (width, length tlines) reconstructed
+          shapesToSvgDocument (twidth, length tlines) reconstructed
       return $ acc
             <> H.img H.! H.src (H.toValue fileName)
             <> H.pre (H.toHtml content)
