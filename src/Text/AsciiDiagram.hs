@@ -12,14 +12,11 @@ import Control.Monad( forM_ )
 import Control.Monad.ST( runST )
 import Data.Monoid( mempty )
 import qualified Data.Foldable as F
-import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector.Unboxed.Mutable as VUM
 import Linear( V2( V2 ) )
-
-import qualified Graphics.Svg.Types as Svg
 
 import Text.AsciiDiagram.Parser
 import Text.AsciiDiagram.Reconstructor
@@ -29,22 +26,6 @@ import Text.AsciiDiagram.DiagramCleaner
 
 {-import Debug.Trace-}
 {-import Text.Printf-}
-
-data Diagram = Diagram
-  { _diagramShapes     :: S.Set Shape
-  , _diagramBullet     :: S.Set Point
-  , _diagramTexts      :: [TextZone]
-  , _diagramsStyles    :: M.Map String T.Text
-  , _diagramCellWidth  :: !Int
-  , _diagramCellHeight :: !Int
-  }
-  deriving (Eq, Show)
-
-data TextZone = TextZone
-  { _textZoneOrigin  :: Point
-  , _textZoneContent :: T.Text
-  }
-  deriving (Eq, Show)
 
 data CharBoard = CharBoard
   { _boardWidth  :: !Int
@@ -139,10 +120,4 @@ parseAsciiDiagram content = Diagram
     reconstructed =
       reconstruct (anchorMap parsed) $ segmentSet parsed
     validShapes = S.filter isShapePossible reconstructed
-
-svgOfDiagram :: Diagram -> Svg.Document
-svgOfDiagram diag = shapesToSvgDocument diagramBounds $ _diagramShapes diag
-  where
-    diagramBounds = 
-      (_diagramCellWidth diag, _diagramCellHeight diag)
 

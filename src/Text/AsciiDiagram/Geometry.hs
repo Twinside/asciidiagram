@@ -5,14 +5,35 @@ module Text.AsciiDiagram.Geometry( Point
                                  , SegmentKind( .. )
                                  , Shape( .. )
                                  , ShapeElement( .. )
+                                 , Diagram( .. )
+                                 , TextZone( .. )
                                  , firstPointOfShape
                                  ) where
 
 import Data.Monoid( Monoid( mappend, mempty ))
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text as T
 import Linear( V2( .. ) )
 
 type Point = V2 Int
 type Vector = V2 Int
+
+data Diagram = Diagram
+  { _diagramShapes     :: S.Set Shape
+  , _diagramBullet     :: S.Set Point
+  , _diagramTexts      :: [TextZone]
+  , _diagramsStyles    :: M.Map String T.Text
+  , _diagramCellWidth  :: !Int
+  , _diagramCellHeight :: !Int
+  }
+  deriving (Eq, Show)
+
+data TextZone = TextZone
+  { _textZoneOrigin  :: Point
+  , _textZoneContent :: T.Text
+  }
+  deriving (Eq, Show)
 
 data Anchor
   = AnchorMulti       -- ^ Associated to '+'

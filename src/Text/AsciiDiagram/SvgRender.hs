@@ -1,16 +1,20 @@
-module Text.AsciiDiagram.SvgRender( shapesToSvgDocument ) where
+module Text.AsciiDiagram.SvgRender( svgOfDiagram ) where
 
 import Control.Applicative( (<$>) )
+import Control.Monad.State.Strict( execState )
 import Data.Monoid( Last( .. )
                   , mempty )
-import Control.Monad.State.Strict( execState )
-import Graphics.Svg.Types( HasDrawAttributes( .. )
-                         , Texture( ColorRef )
-                         , Document( .. )
-                         , drawAttr )
+
+import Graphics.Svg( HasDrawAttributes( .. )
+                   , Texture( ColorRef )
+                   , Document( .. )
+                   , cssRulesOfText
+                   , drawAttr )
 import Codec.Picture( PixelRGBA8( PixelRGBA8 ) )
 import qualified Graphics.Svg.Types as Svg
 import qualified Data.Set as S
+import qualified Data.Text as T
+import Text.Printf
 import Linear( V2( .. )
              , (^+^)
              , (^-^)
@@ -23,8 +27,7 @@ import Control.Lens( zoom, (.=) )
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
 
-{-import Debug.Trace-}
-{-import Text.Printf-}
+import Debug.Trace
 {-import Text.Groom-}
 
 data GridSize = GridSize
@@ -89,6 +92,14 @@ initialPrevious True lst@(x:_) = Just point
 swapSegment :: Segment -> Segment
 swapSegment seg =
   seg { _segStart = _segEnd seg, _segEnd = _segStart seg }
+
+rollToSegment :: Shape -> Shape
+rollToSegment shape | not $ shapeIsClosed shape = shape
+rollToSegment shape = shape { shapeElements = segments ++ anchorPrefix } where
+  (anchorPrefix, segments) = span isAnchor $ shapeElements shape
+
+  isAnchor (ShapeSegment _) = False
+  isAnchor (ShapeAnchor _ _) = True
 
 reorderShapePoints :: Shape -> [(Maybe Point, ShapeElement)]
 reorderShapePoints shape = outList where
@@ -192,6 +203,33 @@ segmentCorrectionVector gscale before seg | _segStart seg == _segEnd seg =
 segmentCorrectionVector gscale _ seg =
     correctionVectorOf gscale (_segStart seg) (_segEnd seg)
 
+straightCorner :: GridSize -> Bool -> Maybe Point -> Point -> Maybe Point
+               -> Svg.Path
+straightCorner gscale True (Just before) p (Just after) =
+    lineTo $ anchorCorrection gscale before p after ^+^ toSvg gscale p
+straightCorner gscale True (Just before) p _ =
+    lineTo $ correctionVectorOf gscale before p ^+^ toSvg gscale p
+straightCorner gscale _ _ p _ = lineTo $ toSvg gscale p
+
+curveCorner :: GridSize -> Maybe Point -> Point -> Maybe Point -> Svg.Path
+curveCorner gscale _ p (Just after) =
+    smoothCurveTo (toS p) $ toS after ^+^ correction
+  where correction = correctionVectorOf gscale p after
+        toS = toSvg gscale
+curveCorner gscale (Just before) p Nothing =
+    smoothCurveTo (toS p) $ toS p ^+^ vec
+  where vec = correctionVectorOf gscale before p
+        toS = toSvg gscale
+curveCorner gscale _ p _ = lineTo $ toSvg gscale p
+
+roundedCorner :: GridSize -> Point -> Point -> Maybe Point -> Svg.Path
+roundedCorner gscale p1 p2 (Just lastPoint) =
+    Svg.CurveTo Svg.OriginAbsolute [(toS p1, toS p2, toS lastPoint ^+^ vec)]
+  where toS = toSvg gscale
+        vec = correctionVectorOf gscale p2 lastPoint
+roundedCorner gscale p1 p2 after =
+    curveCorner gscale (Just p1) p2 after
+
 shapeToTree :: GridSize -> Shape -> Svg.Tree
 shapeToTree gscale shape = 
 {-trace (printf "TOTRANSFER ===============\n%s\nELEMS==============\n%s"-}
@@ -199,49 +237,64 @@ shapeToTree gscale shape =
                                     {-(groom shapeElems)) $-}
     Svg.Path $ Svg.PathPrim mempty pathCommands where
   toS = toSvg gscale
-  correctionVector = correctionVectorOf gscale
 
   shapeElems = associateNextPoint (shapeIsClosed shape)
-             $ reorderShapePoints shape
+             . reorderShapePoints
+             $ rollToSegment shape
+
+  isClosed = shapeIsClosed shape
 
   pathCommands =
     moveTo (startPoint gscale shapeElems)
-        : fmap toPath shapeElems ++ shapeClosing shape
+        : toPath shapeElems ++ shapeClosing shape
 
-  toPath (before, ShapeSegment seg, _) = lineTo $ vc ^+^ toS (_segEnd seg)
+  toPath [] = []
+  toPath ((before, ShapeSegment seg, _):rest) =
+      lineTo (vc ^+^ toS (_segEnd seg)) : toPath rest
     where vc = segmentCorrectionVector gscale before seg
-  toPath (before, ShapeAnchor p a, after) = case a of
-      AnchorPoint -> straightCorner before p after
-      AnchorMulti -> straightCorner before p after
-      AnchorFirstDiag -> curveCorner before p after
-      AnchorSecondDiag -> curveCorner before p after
+  toPath ((_, ShapeAnchor p1 AnchorFirstDiag, _)
+         :(_, ShapeAnchor p2 AnchorSecondDiag, after)
+         :rest) = roundedCorner gscale p1 p2 after : toPath rest
+  toPath ((_, ShapeAnchor p1 AnchorSecondDiag, _)
+         :(_, ShapeAnchor p2 AnchorFirstDiag, after)
+         :rest) = roundedCorner gscale p1 p2 after : toPath rest
+  toPath ((before, ShapeAnchor p a, after):rest) = anchorJoin : toPath rest
+    where
+      anchorJoin = case a of
+        AnchorPoint -> straightCorner gscale isClosed before p after
+        AnchorMulti -> straightCorner gscale isClosed before p after
+        AnchorFirstDiag -> curveCorner gscale before p after
+        AnchorSecondDiag -> curveCorner gscale before p after
 
-  straightCorner (Just before) p (Just after) | shapeIsClosed shape =
-      lineTo $ anchorCorrection gscale before p after ^+^ toS p
-  straightCorner (Just before) p _ | shapeIsClosed shape =
-      lineTo $ correctionVector before p ^+^ toS p
-  straightCorner _ p _ = lineTo $ toS p
 
-  curveCorner _ p (Just after) =
-      smoothCurveTo (toS p) $ toS after ^+^ correction
-    where correction = correctionVectorOf gscale p after
-  curveCorner (Just before) p Nothing = smoothCurveTo (toS p) $ toS p ^+^ vec
-    where vec = correctionVector before p
-  curveCorner _ p _ = lineTo $ toS p
+textToTree :: GridSize -> TextZone -> Svg.Tree
+textToTree gscale zone = Svg.TextArea Nothing txt
+  where
+    correction =
+        V2 (_gridCellWidth gscale / 2) (_gridCellHeight gscale) ^* 0.5
+    V2 x y = toSvg gscale (_textZoneOrigin zone) ^+^ correction
+    txt = Svg.textAt (Svg.Num x, Svg.Num y) $ _textZoneContent zone
 
-shapesToSvgDocument :: (Int, Int) -> S.Set Shape -> Svg.Document
-shapesToSvgDocument (w, h) shapes = Document	 
+
+svgOfDiagram :: Diagram -> Svg.Document
+svgOfDiagram diagram = Document
   { _viewBox = Nothing
-  , _width = toSvgSize _gridCellWidth w
-  , _height = toSvgSize _gridCellHeight h
-  , _elements = closedSvg ++ lineSvg
+  , _width =
+      toSvgSize _gridCellWidth $ _diagramCellWidth diagram
+  , _height =
+      toSvgSize _gridCellHeight $ _diagramCellHeight diagram
+  , _elements = closedSvg ++ lineSvg ++ textSvg
   , _definitions = mempty
   , _description = ""
-  , _styleText  = ""
-  , _styleRules = []
+  , _styleRules = (\a -> trace (show a) a) $ cssRulesOfText . T.pack $
+      printf "text { font-family: Consolas, monospace; font-size: %dpx }\n"
+            (floor $ _gridCellHeight scale :: Int)
   }
   where
     (closed, opened) = S.partition shapeIsClosed shapes
+
+    shapes = _diagramShapes diagram
+
     closedSvg =
         applyDefaultShapeDrawAttr . shapeToTree scale <$> filter isShapePossible
                                                             (S.toList closed)
@@ -251,9 +304,11 @@ shapesToSvgDocument (w, h) shapes = Document
     toSvgSize accessor var =
         Just . Svg.Num $ fromIntegral var * accessor scale + 5
 
+    textSvg = textToTree scale <$> _diagramTexts diagram
+
     strokeScale = scale { _gridShapeContraction = 0 }
     scale = GridSize
-      { _gridCellWidth = 11
+      { _gridCellWidth = 12
       , _gridCellHeight = 14
       , _gridShapeContraction = 1.5
       }
