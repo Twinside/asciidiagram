@@ -27,7 +27,7 @@ import Text.AsciiDiagram.Geometry
 isAnchor :: Char -> Bool
 isAnchor c = c `VU.elem` anchors
   where
-    anchors = VU.fromList "<>^V+/\\"
+    anchors = VU.fromList "<>^vV+/\\"
   
 anchorOfChar :: Char -> Anchor
 anchorOfChar '+' = AnchorMulti
@@ -37,6 +37,7 @@ anchorOfChar '>' = AnchorArrowRight
 anchorOfChar '<' = AnchorArrowLeft
 anchorOfChar '^' = AnchorArrowUp
 anchorOfChar 'V' = AnchorArrowDown
+anchorOfChar 'v' = AnchorArrowDown
 anchorOfChar _ = AnchorMulti
 
 isHorizontalLine :: Char -> Bool
@@ -94,8 +95,9 @@ addBullet p = modify $ \s ->
 
 continueHorizontalSegment :: Point -> Parsing ()
 continueHorizontalSegment p = modify $ \s ->
-   s { currentSegment = currentSegment s <> Just seg }
-  where seg = mempty { _segStart = p, _segEnd = p }
+   s { currentSegment = Just . update $ currentSegment s }
+  where update Nothing = mempty { _segStart = p, _segEnd = p }
+        update (Just seg) = seg { _segEnd = p }
 
 setHorizontaDashing :: Parsing ()
 setHorizontaDashing = modify $ \s ->
@@ -117,14 +119,8 @@ continueVerticalSegment Nothing p = return $ Just seg where
   seg = mempty { _segStart = p
                , _segEnd = p
                , _segKind = SegmentVertical }
-continueVerticalSegment (Just (Segment { _segStart = start })) p =
-    return $ Just seg 
-  where
-    seg = mempty
-      { _segStart = start
-      , _segEnd = p
-      , _segKind = SegmentVertical
-      }
+continueVerticalSegment (Just seg) p =
+    return $ Just seg { _segEnd = p, _segKind = SegmentVertical }
 
 stopVerticalSegment :: Maybe Segment -> Parsing (Maybe a)
 stopVerticalSegment Nothing = return Nothing
