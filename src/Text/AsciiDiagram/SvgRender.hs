@@ -43,8 +43,8 @@ data GridSize = GridSize
 
 toSvg :: GridSize -> Point -> Svg.RPoint
 toSvg s (V2 x y) =
-  V2 (_gridCellWidth s * fromIntegral x)
-     (_gridCellHeight s * fromIntegral y)
+  V2 (_gridCellWidth s * fromIntegral (x + 1))
+     (_gridCellHeight s * fromIntegral (y + 1))
 
 
 setDashingInformation :: (Svg.WithDrawAttributes a) => a -> a
@@ -311,7 +311,8 @@ textToTree :: GridSize -> TextZone -> Svg.Tree
 textToTree gscale zone = Svg.TextArea Nothing txt
   where
     correction =
-        V2 (_gridCellWidth gscale / 2) (_gridCellHeight gscale) ^* 0.5
+        V2 (negate $ _gridCellWidth gscale)
+           (_gridCellHeight gscale) ^* 0.5
     V2 x y = toSvg gscale (_textZoneOrigin zone) ^+^ correction
     txt = Svg.textAt (Svg.Num x, Svg.Num y) $ _textZoneContent zone
 
@@ -327,9 +328,9 @@ svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram diagram = Document
   { _viewBox = Nothing
   , _width =
-      toSvgSize _gridCellWidth $ _diagramCellWidth diagram
+      toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
-      toSvgSize _gridCellHeight $ _diagramCellHeight diagram
+      toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
   , _elements = closedSvg ++ lineSvg ++ textSvg
   , _definitions = mempty
   , _description = ""
@@ -354,7 +355,7 @@ svgOfDiagram diagram = Document
 
     strokeScale = scale { _gridShapeContraction = 0 }
     scale = GridSize
-      { _gridCellWidth = 12
+      { _gridCellWidth = 10
       , _gridCellHeight = 14
       , _gridShapeContraction = 1.5
       }
