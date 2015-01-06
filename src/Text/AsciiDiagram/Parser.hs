@@ -1,8 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Module in charge of finding the various segment
 -- in an ASCII text and the various anchors.
 module Text.AsciiDiagram.Parser( ParsingState( .. )
                                , parseText
                                , parseTextLines
+                               , extractTextZones
+                               , detectTagFromTextZone
                                ) where
 
 import Control.Applicative( (<$>) )
@@ -11,10 +14,11 @@ import Control.Monad.State.Strict( State
                                  , execState
                                  , modify )
 import Data.Monoid( (<>), mempty )
-import qualified Data.Traversable as TT
-import qualified Data.Set as S
+import qualified Data.Foldable as F
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.Text as T
+import qualified Data.Traversable as TT
 import qualified Data.Vector.Unboxed as VU
 import Linear( V2( .. ) )
 
@@ -175,4 +179,40 @@ parseTextLines lst = flip execState emptyParsingState $ do
 -- | Extract the segment information of a given text.
 parseText :: T.Text -> ParsingState
 parseText = parseTextLines . T.lines
+
+zoneFromLine :: (Int, T.Text) -> [TextZone]
+zoneFromLine (lineIndex, line) = eatSpaces 0 $ T.split (== ' ') line where
+  eatSpaces ix lst = case lst of
+     [] -> []
+     ("":rest) -> eatSpaces (ix + 1) rest
+     _ -> createZoneFrom ix lst
+
+  createZoneFrom ix = go ix where
+    go endIdx [] | ix == endIdx = []
+    go      _ [] = [TextZone (V2 ix lineIndex) $ T.drop ix line]
+    go endIdx ("":rest) = zone : eatSpaces (endIdx + 1) rest
+      where origin = V2 ix lineIndex
+            zone = TextZone origin . T.drop ix $ T.take endIdx line
+    go endIdx (x:xs) = go (endIdx + T.length x + 1) xs
+
+extractTextZones :: [T.Text] -> [TextZone]
+extractTextZones = F.concatMap zoneFromLine . zip [0 ..]
+
+detectTagFromTextZone :: [TextZone] -> ([TextZone], [TextZone])
+detectTagFromTextZone zones = (concat foundTags, concat normalZones) where
+  (foundTags, normalZones) = unzip $ fmap findTag zones
+
+  findTag zone@(TextZone (V2 x y) txt) =
+    case splitTags y x $ T.split (== ' ') txt of
+      ([], _) -> ([], [zone])
+      tagsAndText -> tagsAndText
+
+  splitTags _  _ [] = ([], [])
+  splitTags y ix (thisTxt : rest)
+     | tlength > 3 && T.head thisTxt == '{' && T.last thisTxt == '}' = 
+        (TextZone (V2 y ix) tagText: afterTags, normalTexts)
+     | otherwise = (afterTags, TextZone (V2 y ix) thisTxt : normalTexts)
+    where tlength = T.length thisTxt
+          tagText = T.init $ T.drop 1 thisTxt
+          (afterTags, normalTexts) = splitTags y (ix + tlength + 1) rest
 

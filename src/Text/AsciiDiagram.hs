@@ -84,24 +84,6 @@ cleanupShapes shapes board = runST $ do
   outBoard <- VU.unsafeFreeze mutableBoard
   return $ board { _boardData = outBoard }
 
-zoneFromLine :: (Int, T.Text) -> [TextZone]
-zoneFromLine (lineIndex, line) = eatSpaces 0 $ T.split (== ' ') line where
-  eatSpaces ix lst = case lst of
-     [] -> []
-     ("":rest) -> eatSpaces (ix + 1) rest
-     _ -> createZoneFrom ix lst
-
-  createZoneFrom ix = go ix where
-    go endIdx [] | ix == endIdx = []
-    go      _ [] = [TextZone (V2 ix lineIndex) $ T.drop ix line]
-    go endIdx ("":rest) = zone : eatSpaces (endIdx + 1) rest
-      where origin = V2 ix lineIndex
-            zone = TextZone origin . T.drop ix $ T.take endIdx line
-    go endIdx (x:xs) = go (endIdx + T.length x + 1) xs
-
-extractTextZones :: [T.Text] -> [TextZone]
-extractTextZones = F.concatMap zoneFromLine . zip [0 ..]
-
 parseAsciiDiagram :: T.Text -> Diagram
 parseAsciiDiagram content = Diagram
     { _diagramShapes = validShapes
