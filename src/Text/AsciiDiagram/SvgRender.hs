@@ -49,8 +49,16 @@ toSvg s (V2 x y) =
 
 setDashingInformation :: (Svg.WithDrawAttributes a) => a -> a
 setDashingInformation = execState . zoom drawAttr $ do
-  attrClass %= Last . fmap ("dashed_elem " <>) . getLast
+  attrClass %= Last . adding . getLast
+    where adding Nothing = Just "dashed_elem" 
+          adding (Just v) = Just $ "dashed_elem " <> v
 
+
+isShapeDashed :: Shape -> Bool
+isShapeDashed = any isDashed . shapeElements where
+  isDashed (ShapeAnchor _ _) = False
+  isDashed (ShapeSegment Segment { _segDraw = SegmentSolid }) = False
+  isDashed (ShapeSegment Segment { _segDraw = SegmentDashed }) = True
 
 applyDefaultShapeDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
@@ -263,8 +271,12 @@ shapeToTree gscale shape =
 {-trace (printf "TOTRANSFER ===============\n%s\nELEMS==============\n%s"-}
                                     {-(groom shape)-}
                                     {-(groom shapeElems)) $-}
-    Svg.Path $ Svg.PathPrim mempty pathCommands where
+    dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands where
   toS = toSvg gscale
+
+  dashingSet
+    | isShapeDashed shape = setDashingInformation 
+    | otherwise = id
 
   shapeElems = associateNextPoint (shapeIsClosed shape)
              . reorderShapePoints
@@ -303,6 +315,13 @@ textToTree gscale zone = Svg.TextArea Nothing txt
     V2 x y = toSvg gscale (_textZoneOrigin zone) ^+^ correction
     txt = Svg.textAt (Svg.Num x, Svg.Num y) $ _textZoneContent zone
 
+defaultCss :: Float -> T.Text
+defaultCss textSize = T.pack $ printf
+  ("\n" <>
+   "text { font-family: Consolas, monospace; font-size: %dpx }\n" <>
+   ".dashed_elem { stroke-dasharray: 5 }\n"
+  )
+  (floor textSize :: Int)
 
 svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram diagram = Document
@@ -314,9 +333,8 @@ svgOfDiagram diagram = Document
   , _elements = closedSvg ++ lineSvg ++ textSvg
   , _definitions = mempty
   , _description = ""
-  , _styleRules = (\a -> trace (show a) a) $ cssRulesOfText . T.pack $
-      printf "text { font-family: Consolas, monospace; font-size: %dpx }\n"
-            (floor $ _gridCellHeight scale :: Int)
+  , _styleRules =
+      (\a -> trace (show a) a) $ cssRulesOfText . defaultCss $ _gridCellHeight scale
   }
   where
     (closed, opened) = S.partition shapeIsClosed shapes
