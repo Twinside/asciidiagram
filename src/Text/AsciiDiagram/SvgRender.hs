@@ -30,7 +30,7 @@ import Control.Lens( zoom, (.=), (%=) )
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
 
-import Debug.Trace
+{-import Debug.Trace-}
 {-import Text.Groom-}
 
 data GridSize = GridSize
@@ -50,7 +50,7 @@ toSvg s (V2 x y) =
 setDashingInformation :: (Svg.WithDrawAttributes a) => a -> a
 setDashingInformation = execState . zoom drawAttr $ do
   attrClass %= Last . adding . getLast
-    where adding Nothing = Just "dashed_elem" 
+    where adding Nothing = Just "dashed_elem"
           adding (Just v) = Just $ "dashed_elem " <> v
 
 
@@ -65,6 +65,16 @@ applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
     fillColor .= toLC 200 200 200 255
     strokeColor .= toLC 0 0 0 255
     strokeWidth .= toL (Svg.Num 1)
+  where
+    toL = Last . Just
+    toLC r g b a =
+        toL . ColorRef $ PixelRGBA8 r g b a
+
+applyLineArrowDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
+applyLineArrowDrawAttr = execState . zoom drawAttr $ do
+    fillColor .= toLC 0 0 0 255
+    strokeColor .= toL Svg.FillNone
+    strokeWidth .= toL (Svg.Num 0)
   where
     toL = Last . Just
     toLC r g b a =
@@ -127,7 +137,7 @@ rollToSegment shape = shape { shapeElements = segments ++ anchorPrefix } where
 
 reorderShapePoints :: Shape -> [(Maybe Point, ShapeElement)]
 reorderShapePoints shape = outList where
-  outList = go initialPrev elements 
+  outList = go initialPrev elements
   elements = shapeElements shape
   initialPrev = initialPrevious (shapeIsClosed shape) elements
 
@@ -138,9 +148,9 @@ reorderShapePoints shape = outList where
     | start == _segEnd seg = (prev, s) : go (Just start) rest
       where start = _segStart seg
   go prev@(Just prevPoint) (s@(ShapeSegment seg):rest)
-    | prevPoint `isNearBy` start = 
+    | prevPoint `isNearBy` start =
         (prev, s) : go (Just end) rest
-    | otherwise = 
+    | otherwise =
         (prev, ShapeSegment $ swapSegment seg) : go (Just start) rest
       where start = _segStart seg
             end = _segEnd seg
@@ -162,7 +172,7 @@ associateNextPoint isClosed elements = go elements where
     Just . startPointOf . head $ map snd elements
 
   go [] = []
-  go [(p, s)] 
+  go [(p, s)]
     | isClosed = [(p, s, startingPoint)]
     | otherwise = [(p, s, Nothing)]
   go ((p, s):xs@((_, y):_)) =
@@ -189,7 +199,7 @@ startPoint gscale shapeElems = case shapeElems of
     [] -> V2 0 0
     (before, ShapeSegment seg, _):_ -> pp ^+^ vc where
        vc = segmentCorrectionVector gscale before seg
-       pp = toS $ _segStart seg 
+       pp = toS $ _segStart seg
     (Just before, ShapeAnchor p _, Just after):_ -> toS p ^+^ combined
         where v1 = correctionVector before p
               v2 = correctionVector p after
@@ -265,51 +275,92 @@ roundedCorner gscale p1 p2 (Just lastPoint) =
 roundedCorner gscale p1 p2 after =
     curveCorner gscale (Just p1) p2 after
 
+toPathRooted :: [Svg.RPoint] -> GridSize -> Point -> Svg.Tree
+toPathRooted pts gscale p =
+    applyLineArrowDrawAttr . Svg.Path $ Svg.PathPrim mempty pathCommands
+  where
+    pt = fromIntegral <$> p
+    sizes = V2 (_gridCellWidth gscale) (_gridCellHeight gscale)
+
+    toGrid pp = lineTo $ (pt ^+^ pp) * sizes
+    pathCommands = case pts of
+      [] -> []
+      x:xs -> moveTo ((pt ^+^ x) * sizes)
+                : fmap toGrid xs ++ [Svg.EndPath]
+
+toRightArrow :: GridSize -> Point -> Svg.Tree
+toRightArrow =
+  toPathRooted [ V2 1 0.5
+               , V2 2 1
+               , V2 1 1.5
+               ]
+
+toLeftArrow :: GridSize -> Point -> Svg.Tree
+toLeftArrow =
+  toPathRooted [ V2 1 0.5
+               , V2 0 1
+               , V2 1 1.5
+               ]
+
+toTopArrow :: GridSize -> Point -> Svg.Tree
+toTopArrow =
+  toPathRooted [ V2 0.5 1
+               , V2 1.5 1
+               , V2 1   0
+               ]
+
+toBottomArrow :: GridSize -> Point -> Svg.Tree
+toBottomArrow =
+  toPathRooted [ V2 0.5 1
+               , V2 1.5 1
+               , V2 1   2
+               ]
 
 shapeToTree :: GridSize -> Shape -> Svg.Tree
-shapeToTree gscale shape = 
-{-trace (printf "TOTRANSFER ===============\n%s\nELEMS==============\n%s"-}
-                                    {-(groom shape)-}
-                                    {-(groom shapeElems)) $-}
-    dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands where
-  toS = toSvg gscale
+shapeToTree gscale shape =
+  case concat arrows of
+    [] -> svgPath
+    lst -> Svg.GroupTree $ Svg.defaultSvg { Svg._groupChildren = svgPath : lst }
+  where
+    toS = toSvg gscale
 
-  dashingSet
-    | isShapeDashed shape = setDashingInformation 
-    | otherwise = id
+    dashingSet
+      | isShapeDashed shape = setDashingInformation
+      | otherwise = id
 
-  shapeElems = associateNextPoint (shapeIsClosed shape)
-             . reorderShapePoints
-             $ rollToSegment shape
+    shapeElems = associateNextPoint (shapeIsClosed shape)
+               . reorderShapePoints
+               $ rollToSegment shape
 
-  isClosed = shapeIsClosed shape
+    isClosed = shapeIsClosed shape
+    svgPath = dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands
+    pathCommands =
+      moveTo (startPoint gscale shapeElems)
+          : concat pathes ++ shapeClosing shape
+    (pathes, arrows) = unzip $ toPath shapeElems
 
-  pathCommands =
-    moveTo (startPoint gscale shapeElems)
-        : toPath shapeElems ++ shapeClosing shape
+    toPath [] = []
+    toPath ((before, ShapeSegment seg, _):rest) =
+        ([lineTo (vc ^+^ toS (_segEnd seg))], []) : toPath rest
+      where vc = segmentCorrectionVector gscale before seg
+    toPath ((_, ShapeAnchor p1 AnchorFirstDiag, _)
+           :(_, ShapeAnchor p2 AnchorSecondDiag, after)
+           :rest) = ([roundedCorner gscale p1 p2 after], []) : toPath rest
+    toPath ((_, ShapeAnchor p1 AnchorSecondDiag, _)
+           :(_, ShapeAnchor p2 AnchorFirstDiag, after)
+           :rest) = ([roundedCorner gscale p1 p2 after], []) : toPath rest
+    toPath ((before, ShapeAnchor p a, after):rest) = anchorJoin : toPath rest
+      where
+        anchorJoin = case a of
+          AnchorPoint -> ([straightCorner gscale isClosed before p after], [])
+          AnchorMulti -> ([straightCorner gscale isClosed before p after], [])
+          AnchorFirstDiag -> ([curveCorner gscale before p after], [])
+          AnchorSecondDiag -> ([curveCorner gscale before p after], [])
 
-  toPath [] = []
-  toPath ((before, ShapeSegment seg, _):rest) =
-      lineTo (vc ^+^ toS (_segEnd seg)) : toPath rest
-    where vc = segmentCorrectionVector gscale before seg
-  toPath ((_, ShapeAnchor p1 AnchorFirstDiag, _)
-         :(_, ShapeAnchor p2 AnchorSecondDiag, after)
-         :rest) = roundedCorner gscale p1 p2 after : toPath rest
-  toPath ((_, ShapeAnchor p1 AnchorSecondDiag, _)
-         :(_, ShapeAnchor p2 AnchorFirstDiag, after)
-         :rest) = roundedCorner gscale p1 p2 after : toPath rest
-  toPath ((before, ShapeAnchor p a, after):rest) = anchorJoin : toPath rest
-    where
-      anchorJoin = case a of
-        AnchorPoint -> straightCorner gscale isClosed before p after
-        AnchorMulti -> straightCorner gscale isClosed before p after
-        AnchorFirstDiag -> curveCorner gscale before p after
-        AnchorSecondDiag -> curveCorner gscale before p after
-
-        AnchorArrowUp -> straightCorner gscale isClosed before p after
-        AnchorArrowDown -> straightCorner gscale isClosed before p after
-        AnchorArrowLeft -> straightCorner gscale isClosed before p after
-        AnchorArrowRight -> straightCorner gscale isClosed before p after
+          AnchorArrowUp -> ([], [toTopArrow gscale p])
+          AnchorArrowDown -> ([], [toBottomArrow gscale p])
+          AnchorArrowLeft -> ([], [toLeftArrow gscale p])
+          AnchorArrowRight -> ([], [toRightArrow gscale p])
 
 
 textToTree :: GridSize -> TextZone -> Svg.Tree
@@ -324,7 +375,7 @@ textToTree gscale zone = Svg.TextArea Nothing txt
 defaultCss :: Float -> T.Text
 defaultCss textSize = T.pack $ printf
   ("\n" <>
-   "text { font-family: Consolas, monospace; font-size: %dpx }\n" <>
+   "text { font-family: Consolas, monospace; font-size: %dpx; }\n" <>
    ".dashed_elem { stroke-dasharray: 5 }\n"
   )
   (floor textSize :: Int)
@@ -339,8 +390,7 @@ svgOfDiagram diagram = Document
   , _elements = closedSvg ++ lineSvg ++ textSvg
   , _definitions = mempty
   , _description = ""
-  , _styleRules =
-      (\a -> trace (show a) a) $ cssRulesOfText . defaultCss $ _gridCellHeight scale
+  , _styleRules = cssRulesOfText . defaultCss $ _gridCellHeight scale
   }
   where
     (closed, opened) = S.partition shapeIsClosed shapes
@@ -350,7 +400,7 @@ svgOfDiagram diagram = Document
     closedSvg =
         applyDefaultShapeDrawAttr . shapeToTree scale <$> filter isShapePossible
                                                             (S.toList closed)
-    lineSvg = 
+    lineSvg =
         applyDefaultLineDrawAttr . shapeToTree strokeScale <$> S.toList opened
 
     toSvgSize accessor var =

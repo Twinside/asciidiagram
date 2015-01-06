@@ -32,8 +32,8 @@ import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.Graph
 import Control.Lens
 
-{-import Debug.Trace-}
-{-import Text.Printf-}
+import Debug.Trace
+import Text.Printf
 {-import Text.Groom-}
 
 data Direction
@@ -157,9 +157,23 @@ toGraph anchors segs = execState graphCreator baseGraph where
   linkAnchors (p, a) = F.traverse_ createLinks nextPoints where
     nextPoints = nextPointAfterAnchor a (V2 (-1) (-1)) p
     createLinks nextPoint = do
-      nextExist <- has (vertices . ix nextPoint) <$> get
+      nextExists <- has (vertices . ix nextPoint) <$> get
+      let dirNext = nextPoint ^-^ p
+          tracor w yn = 
+            (trace $ printf "LANCHOR> %s %s -%s-> %s %s"
+                    (show p) (show a) (show dirNext) (show w) (show yn)) yn
+          nextP = M.lookup nextPoint anchors
+          nextIsOk = case nextP of
+            Nothing -> True
+            Just AnchorArrowUp -> 
+                tracor nextP $ V2 0 (-1) == dirNext
+            Just AnchorArrowDown -> tracor nextP $ V2 0 1 == dirNext
+            Just AnchorArrowLeft -> tracor nextP $ V2 (-1) 0 == dirNext
+            Just AnchorArrowRight -> tracor nextP $ V2 1 0 == dirNext
+            Just _ -> True
+
       alreadyLinked <- has (edges . ix (linkOf p nextPoint)) <$> get
-      when (nextExist && not alreadyLinked) $
+      when (nextExists && nextIsOk && not alreadyLinked) $
          edges . at (linkOf p nextPoint) ?= mempty
 
   linkSegments seg | segmentManathanLength seg == 0 = do
