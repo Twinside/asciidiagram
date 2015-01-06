@@ -101,13 +101,18 @@ directionOfVector _ = NoDirection
 --      ***    |    ***
 --         ****|****
 --
-vectorsForAnchor :: Direction -> [Vector]
-vectorsForAnchor dir = case dir of
-  LeftToRight -> [up, right, down, left]
-  TopToBottom -> [right, down, left, up]
-  NoDirection -> [right, down, left, up]
-  RightToLeft -> [down, left, up, right]
-  BottomToTop -> [left, up, right, down]
+vectorsForAnchor :: Anchor -> Direction -> [Vector]
+vectorsForAnchor anchor dir = case (anchor, dir) of
+  (AnchorArrowUp, _) -> [down]
+  (AnchorArrowDown, _) -> [up]
+  (AnchorArrowLeft, _) -> [right]
+  (AnchorArrowRight, _) -> [left]
+
+  (_, LeftToRight) -> [up, right, down, left]
+  (_, TopToBottom) -> [right, down, left, up]
+  (_, NoDirection) -> [right, down, left, up]
+  (_, RightToLeft) -> [down, left, up, right]
+  (_, BottomToTop) -> [left, up, right, down]
 
   where
     left = V2 (-1) 0
@@ -118,19 +123,19 @@ vectorsForAnchor dir = case dir of
 directionVectorOf :: Point -> Point -> Vector
 directionVectorOf a b = signum <$> a ^-^ b
 
-nextDirectionAfterAnchor :: Point -> Point -> [Point]
-nextDirectionAfterAnchor previousPoint anchorPosition =
+nextDirectionAfterAnchor :: Anchor -> Point -> Point -> [Point]
+nextDirectionAfterAnchor anchor previousPoint anchorPosition =
     [delta | delta <- deltas
            , let nextPoint = anchorPosition ^+^ delta
            , nextPoint /= previousPoint]
   where
     directionVector = directionVectorOf anchorPosition previousPoint
     direction = directionOfVector directionVector
-    deltas = vectorsForAnchor direction
+    deltas = vectorsForAnchor anchor direction
 
-nextPointAfterAnchor :: Point -> Point -> [Point]
-nextPointAfterAnchor prev p =
-    (^+^ p) <$> nextDirectionAfterAnchor prev p
+nextPointAfterAnchor :: Anchor -> Point -> Point -> [Point]
+nextPointAfterAnchor anchor prev p =
+    (^+^ p) <$> nextDirectionAfterAnchor anchor prev p
 
 segmentManathanLength :: Segment -> Int
 segmentManathanLength seg = x + y where
@@ -149,8 +154,8 @@ toGraph anchors segs = execState graphCreator baseGraph where
   linkOf p1 p2 | p1 < p2 = (p1, p2)
                | otherwise = (p2, p1)
 
-  linkAnchors (p, _) = F.traverse_ createLinks nextPoints where
-    nextPoints = nextPointAfterAnchor (V2 (-1) (-1)) p
+  linkAnchors (p, a) = F.traverse_ createLinks nextPoints where
+    nextPoints = nextPointAfterAnchor a (V2 (-1) (-1)) p
     createLinks nextPoint = do
       nextExist <- has (vertices . ix nextPoint) <$> get
       alreadyLinked <- has (edges . ix (linkOf p nextPoint)) <$> get
@@ -171,7 +176,9 @@ findClockwisePossible adjacents Nothing p =
 findClockwisePossible adjacents (Just prev) p =
     fmap snd $ sortBy (compare `on` fst) indexedAdjacents
   where
-    dirArray = V.fromList $ nextDirectionAfterAnchor prev p
+    -- don't care about specific direction, restrictions should have
+    -- been made during the construction of the graph.
+    dirArray = V.fromList $ nextDirectionAfterAnchor AnchorMulti prev p
     zipIndex k = (V.elemIndex dir dirArray, k)
       where dir = directionVectorOf k p
     indexedAdjacents =

@@ -27,12 +27,16 @@ import Text.AsciiDiagram.Geometry
 isAnchor :: Char -> Bool
 isAnchor c = c `VU.elem` anchors
   where
-    anchors = VU.fromList "+/\\"
+    anchors = VU.fromList "<>^V+/\\"
   
 anchorOfChar :: Char -> Anchor
 anchorOfChar '+' = AnchorMulti
 anchorOfChar '/' = AnchorFirstDiag
 anchorOfChar '\\' = AnchorSecondDiag
+anchorOfChar '>' = AnchorArrowRight
+anchorOfChar '<' = AnchorArrowLeft
+anchorOfChar '^' = AnchorArrowUp
+anchorOfChar 'V' = AnchorArrowDown
 anchorOfChar _ = AnchorMulti
 
 isHorizontalLine :: Char -> Bool

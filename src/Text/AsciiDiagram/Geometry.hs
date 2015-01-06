@@ -40,7 +40,13 @@ data Anchor
   = AnchorMulti       -- ^ Associated to '+'
   | AnchorFirstDiag   -- ^ Associated to '/'
   | AnchorSecondDiag  -- ^ Associated to '\'
+
   | AnchorPoint       -- ^ Kind of "end anchor", without continuation.
+
+  | AnchorArrowUp     -- ^ Associated to '^'
+  | AnchorArrowDown   -- ^ Associated to 'V'
+  | AnchorArrowLeft   -- ^ Associated to '<'
+  | AnchorArrowRight  -- ^ Associated to '>'
   deriving (Eq, Ord, Show)
 
 data SegmentKind

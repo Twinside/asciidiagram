@@ -306,6 +306,11 @@ shapeToTree gscale shape =
         AnchorFirstDiag -> curveCorner gscale before p after
         AnchorSecondDiag -> curveCorner gscale before p after
 
+        AnchorArrowUp -> straightCorner gscale isClosed before p after
+        AnchorArrowDown -> straightCorner gscale isClosed before p after
+        AnchorArrowLeft -> straightCorner gscale isClosed before p after
+        AnchorArrowRight -> straightCorner gscale isClosed before p after
+
 
 textToTree :: GridSize -> TextZone -> Svg.Tree
 textToTree gscale zone = Svg.TextArea Nothing txt
