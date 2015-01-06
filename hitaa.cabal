@@ -28,11 +28,12 @@ library
 
   -- other-modules:       
   -- other-extensions:    
+  -- containers >= 0.5.2.1 for Set.elemAt
   build-depends: base >=4.6 && <4.9
                , vector
                , text
                , linear
-               , containers
+               , containers 
                , mtl
                , lens
                , svg-tree

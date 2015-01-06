@@ -1,9 +1,10 @@
 module Text.AsciiDiagram.Geometry( Point
                                  , Vector
                                  , Anchor( .. )
-                                 , Segment( .. )
-                                 , SegmentKind( .. )
                                  , Shape( .. )
+                                 , Segment( .. )
+                                 , SegmentDraw( .. )
+                                 , SegmentKind( .. )
                                  , ShapeElement( .. )
                                  , Diagram( .. )
                                  , TextZone( .. )

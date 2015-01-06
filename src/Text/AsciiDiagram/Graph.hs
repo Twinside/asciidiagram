@@ -242,6 +242,12 @@ findCounterClockwiseMost mv v = do
   adj <- maybe mempty snd <$> use (adjacency . at v)
   return $ getCounterClockwiseMost adj mv v
 
+setElemAtOne :: S.Set a -> a
+-- S.elemAt requires containers >= 0.5
+setElemAtOne = extract . S.toList where
+  extract (_:v:_) = v
+  extract _ = error "Bad set size."
+
 extractFilamentFromMiddle
   :: ( MonadState (MinimalCycleFinderState v vi ei) m
      , Functor m
@@ -257,7 +263,7 @@ extractFilamentFromMiddle = go where
     else if prev /= nextVertice then
       go curr nextVertice
     else
-      go curr $ S.elemAt 1 adjs
+      go curr $ setElemAtOne adjs
 
 addFilament :: ( MonadState (MinimalCycleFinderState v vi ei) m
                , Show v )

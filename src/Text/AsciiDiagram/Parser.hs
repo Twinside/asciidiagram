@@ -6,7 +6,7 @@ module Text.AsciiDiagram.Parser( ParsingState( .. )
                                ) where
 
 import Control.Applicative( (<$>) )
-import Control.Monad( foldM )
+import Control.Monad( foldM, when )
 import Control.Monad.State.Strict( State
                                  , execState
                                  , modify )
@@ -40,6 +40,12 @@ isVerticalLine :: Char -> Bool
 isVerticalLine c = c `VU.elem` verticalLineElements
   where
     verticalLineElements = VU.fromList ":|"
+
+isDashed :: Char -> Bool
+isDashed c = case c of
+  ':' -> True
+  '=' -> True
+  _ -> False
 
 isBullet :: Char -> Bool
 isBullet '*' = True
@@ -82,6 +88,12 @@ continueHorizontalSegment :: Point -> Parsing ()
 continueHorizontalSegment p = modify $ \s ->
    s { currentSegment = currentSegment s <> Just seg }
   where seg = mempty { _segStart = p, _segEnd = p }
+
+setHorizontaDashing :: Parsing ()
+setHorizontaDashing = modify $ \s ->
+    s { currentSegment = setDashed <$> currentSegment s }
+  where
+    setDashed seg = seg { _segDraw = SegmentDashed }
 
 stopHorizontalSegment :: Parsing ()
 stopHorizontalSegment = modify $ \s ->
@@ -128,12 +140,16 @@ parseLine prevSegments (lineNumber, txt) = TT.mapM go $ zip3 [0 ..] prevSegments
     go (columnNumber, vertical, c) | isHorizontalLine c = do
         let point = V2 columnNumber lineNumber
         continueHorizontalSegment point
+        when (isDashed c) $ setHorizontaDashing
         stopVerticalSegment vertical
 
     go (columnNumber, vertical, c) | isVerticalLine c = do
         let point = V2 columnNumber lineNumber
+            dashingSet seg
+                | isDashed c = seg { _segDraw = SegmentDashed }
+                | otherwise = seg
         stopHorizontalSegment
-        continueVerticalSegment vertical point
+        fmap dashingSet <$> continueVerticalSegment vertical point
 
     go (columnNumber, vertical, c) | isAnchor c = do
         let point = V2 columnNumber lineNumber

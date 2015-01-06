@@ -5,11 +5,13 @@ import Control.Monad.State.Strict( execState )
 import Data.Monoid( Last( .. )
                   , mempty )
 
-import Graphics.Svg( HasDrawAttributes( .. )
+import Graphics.Svg.Types
+                   ( HasDrawAttributes( .. )
                    , Texture( ColorRef )
                    , Document( .. )
-                   , cssRulesOfText
                    , drawAttr )
+import Graphics.Svg( cssRulesOfText )
+
 import Codec.Picture( PixelRGBA8( PixelRGBA8 ) )
 import qualified Graphics.Svg.Types as Svg
 import qualified Data.Set as S
