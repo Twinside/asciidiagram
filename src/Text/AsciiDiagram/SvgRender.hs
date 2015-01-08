@@ -81,6 +81,11 @@ applyLineArrowDrawAttr = execState . zoom drawAttr $ do
     toLC r g b a =
         toL . ColorRef $ PixelRGBA8 r g b a
 
+applyBulletDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
+applyBulletDrawAttr = execState . zoom drawAttr $ do
+    attrClass %= Last . Just 
+                      . maybe "bullet" ("bullet" ++)
+                      . getLast
 
 applyDefaultLineDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultLineDrawAttr = execState . zoom drawAttr $ do
@@ -383,7 +388,8 @@ defaultCss textSize = T.pack $ printf
   ("\n" <>
    "text { font-family: Consolas, monospace; font-size: %dpx }\n" <>
    ".dashed_elem { stroke-dasharray: 4, 3 }\n" <>
-   ".filled_shape { fill: url(#shape_light) }\n"
+   ".filled_shape { fill: url(#shape_light) }\n" <>
+   ".bullet { stroke-width: 1px; fill: white; stroke: black }\n"
   )
   (floor textSize :: Int)
 
@@ -398,6 +404,14 @@ lightShapeGradient = Svg.ElementLinearGradient $
             ]
         }
 
+renderBullet :: GridSize -> Point -> Svg.Tree
+renderBullet gscale p = applyBulletDrawAttr $ Svg.CircleTree Svg.defaultSvg
+  { Svg._circleCenter = (Svg.Num x, Svg.Num y)
+  , Svg._circleRadius = Svg.Num $ halfWidth - 2
+  }
+  where V2 x y = toSvg gscale p
+        halfWidth = _gridCellWidth gscale / 2
+
 svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram diagram = Document
   { _viewBox = Nothing
@@ -405,7 +419,7 @@ svgOfDiagram diagram = Document
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
-  , _elements = closedSvg ++ lineSvg ++ textSvg
+  , _elements = closedSvg ++ lineSvg ++ bullets ++ textSvg
   , _definitions = M.fromList
         [("shape_light", lightShapeGradient)]
   , _description = ""
@@ -415,6 +429,10 @@ svgOfDiagram diagram = Document
     (closed, opened) = S.partition shapeIsClosed shapes
 
     shapes = _diagramShapes diagram
+
+    bullets = fmap (renderBullet scale)
+            . S.toList
+            $ _diagramBullet diagram
 
     closedSvg =
         applyDefaultShapeDrawAttr . shapeToTree scale <$> filter isShapePossible
