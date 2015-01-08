@@ -15,6 +15,7 @@ import Graphics.Svg( cssRulesOfText )
 
 import Codec.Picture( PixelRGBA8( PixelRGBA8 ) )
 import qualified Graphics.Svg.Types as Svg
+import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Text.Printf
@@ -62,8 +63,8 @@ isShapeDashed = any isDashed . shapeElements where
 
 applyDefaultShapeDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
-    fillColor .= toLC 200 200 200 255
     strokeColor .= toLC 0 0 0 255
+    attrClass %= Last . Just . maybe "filled_shape" ("filled_shape " ++) . getLast
     strokeWidth .= toL (Svg.Num 1)
   where
     toL = Last . Just
@@ -197,14 +198,14 @@ startPoint :: GridSize -> [(Maybe Point, ShapeElement, Maybe Point)]
            -> Svg.RPoint
 startPoint gscale shapeElems = case shapeElems of
     [] -> V2 0 0
-    (before, ShapeSegment seg, _):_ -> pp ^+^ vc where
-       vc = segmentCorrectionVector gscale before seg
-       pp = toS $ _segStart seg
     (Just before, ShapeAnchor p _, Just after):_ -> toS p ^+^ combined
         where v1 = correctionVector before p
               v2 = correctionVector p after
               combined | v1 == v2 = v1
                        | otherwise = v1 ^+^ v2
+    (before, ShapeSegment seg, _):_ -> pp ^+^ vc where
+       vc = segmentCorrectionVector gscale before seg
+       pp = toS $ _segStart seg
     (_, ShapeAnchor p _, _):_ -> toS p
   where
     correctionVector = correctionVectorOf gscale
@@ -340,9 +341,14 @@ shapeToTree gscale shape =
     (pathes, arrows) = unzip $ toPath shapeElems
 
     toPath [] = []
-    toPath ((before, ShapeSegment seg, _):rest) =
+    toPath ((before, ShapeSegment seg, Just _):rest) =
         ([lineTo (vc ^+^ toS (_segEnd seg))], []) : toPath rest
       where vc = segmentCorrectionVector gscale before seg
+    toPath ((before, ShapeSegment seg, Nothing):rest) =
+        ([lineTo (vc ^+^ toS (_segEnd seg))], []) : toPath rest
+      where vc = segmentCorrectionVector gscale before seg'
+            extension = signum <$> (_segEnd seg ^-^ _segStart seg)
+            seg' = seg { _segEnd = _segEnd seg ^+^ extension }
     toPath ((_, ShapeAnchor p1 AnchorFirstDiag, _)
            :(_, ShapeAnchor p2 AnchorSecondDiag, after)
            :rest) = ([roundedCorner gscale p1 p2 after], []) : toPath rest
@@ -357,10 +363,10 @@ shapeToTree gscale shape =
           AnchorFirstDiag -> ([curveCorner gscale before p after], [])
           AnchorSecondDiag -> ([curveCorner gscale before p after], [])
 
-          AnchorArrowUp -> ([], [toTopArrow gscale p])
-          AnchorArrowDown -> ([], [toBottomArrow gscale p])
-          AnchorArrowLeft -> ([], [toLeftArrow gscale p])
-          AnchorArrowRight -> ([], [toRightArrow gscale p])
+          AnchorArrowUp -> ([lineTo $ toS p], [toTopArrow gscale p])
+          AnchorArrowDown -> ([lineTo $ toS p], [toBottomArrow gscale p])
+          AnchorArrowLeft -> ([lineTo $ toS p], [toLeftArrow gscale p])
+          AnchorArrowRight -> ([lineTo $ toS p], [toRightArrow gscale p])
 
 
 textToTree :: GridSize -> TextZone -> Svg.Tree
@@ -375,10 +381,22 @@ textToTree gscale zone = Svg.TextArea Nothing txt
 defaultCss :: Float -> T.Text
 defaultCss textSize = T.pack $ printf
   ("\n" <>
-   "text { font-family: Consolas, monospace; font-size: %dpx; }\n" <>
-   ".dashed_elem { stroke-dasharray: 5 }\n"
+   "text { font-family: Consolas, monospace; font-size: %dpx }\n" <>
+   ".dashed_elem { stroke-dasharray: 4, 3 }\n" <>
+   ".filled_shape { fill: url(#shape_light) }\n"
   )
   (floor textSize :: Int)
+
+lightShapeGradient :: Svg.Element
+lightShapeGradient = Svg.ElementLinearGradient $
+    Svg.defaultSvg
+        { Svg._linearGradientStart = (Svg.Percent 0, Svg.Percent 0)
+        , Svg._linearGradientStop =  (Svg.Percent 0, Svg.Percent 1)
+        , Svg._linearGradientStops =
+            [ Svg.GradientStop 0 $ PixelRGBA8 245 245 245 255
+            , Svg.GradientStop 1 $ PixelRGBA8 216 216 216 255
+            ]
+        }
 
 svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram diagram = Document
@@ -388,7 +406,8 @@ svgOfDiagram diagram = Document
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
   , _elements = closedSvg ++ lineSvg ++ textSvg
-  , _definitions = mempty
+  , _definitions = M.fromList
+        [("shape_light", lightShapeGradient)]
   , _description = ""
   , _styleRules = cssRulesOfText . defaultCss $ _gridCellHeight scale
   }
