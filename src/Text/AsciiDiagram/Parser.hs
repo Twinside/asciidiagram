@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 -- | Module in charge of finding the various segment
 -- in an ASCII text and the various anchors.
 module Text.AsciiDiagram.Parser( ParsingState( .. )
@@ -8,12 +9,13 @@ module Text.AsciiDiagram.Parser( ParsingState( .. )
                                , detectTagFromTextZone
                                ) where
 
+import Data.Monoid( mempty )
+
 import Control.Applicative( (<$>) )
 import Control.Monad( foldM, when )
 import Control.Monad.State.Strict( State
                                  , execState
                                  , modify )
-import Data.Monoid( (<>), mempty )
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -27,7 +29,7 @@ import Text.AsciiDiagram.Geometry
 isAnchor :: Char -> Bool
 isAnchor c = c `VU.elem` anchors
   where
-    anchors = VU.fromList "<>^vV+/\\"
+    anchors = VU.fromList "<>^vV+/\\*"
   
 anchorOfChar :: Char -> Anchor
 anchorOfChar '+' = AnchorMulti
@@ -38,6 +40,7 @@ anchorOfChar '<' = AnchorArrowLeft
 anchorOfChar '^' = AnchorArrowUp
 anchorOfChar 'V' = AnchorArrowDown
 anchorOfChar 'v' = AnchorArrowDown
+anchorOfChar '*' = AnchorBullet
 anchorOfChar _ = AnchorMulti
 
 isHorizontalLine :: Char -> Bool
@@ -56,14 +59,9 @@ isDashed c = case c of
   '=' -> True
   _ -> False
 
-isBullet :: Char -> Bool
-isBullet '*' = True
-isBullet _ = False
-
 
 data ParsingState = ParsingState
   { anchorMap      :: !(M.Map Point Anchor)
-  , bulletSet      :: !(S.Set Point)
   , segmentSet     :: !(S.Set Segment)
   , currentSegment :: !(Maybe Segment)
   , styleLine      :: [(Int, T.Text)]
@@ -73,7 +71,6 @@ data ParsingState = ParsingState
 emptyParsingState :: ParsingState
 emptyParsingState = ParsingState
     { anchorMap      = mempty
-    , bulletSet      = mempty
     , segmentSet     = mempty
     , currentSegment = Nothing
     , styleLine      = mempty
@@ -94,9 +91,6 @@ addSegment seg = modify $ \s ->
 addStyleLine :: (Int, T.Text) -> Parsing ()
 addStyleLine l = modify $ \s ->
    s { styleLine = l : styleLine s }
-addBullet :: Point -> Parsing ()
-addBullet p = modify $ \s ->
-   s { bulletSet = S.insert p $ bulletSet s }
 
 continueHorizontalSegment :: Point -> Parsing ()
 continueHorizontalSegment p = modify $ \s ->
@@ -141,13 +135,6 @@ parseLine prevSegments (n, T.stripPrefix ":::" -> Just txt) = do
 parseLine prevSegments (lineNumber, txt) = TT.mapM go $ zip3 [0 ..] prevSegments stringLine
   where
     stringLine = T.unpack txt ++ repeat ' '
-
-    go (columnNumber, vertical, c) | isBullet c = do
-        let point = V2 columnNumber lineNumber
-        addBullet point
-        addAnchor point '+'
-        stopHorizontalSegment
-        stopVerticalSegment vertical
 
     go (columnNumber, vertical, c) | isHorizontalLine c = do
         let point = V2 columnNumber lineNumber

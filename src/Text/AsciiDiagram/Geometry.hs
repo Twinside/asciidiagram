@@ -22,7 +22,6 @@ type Vector = V2 Int
 
 data Diagram = Diagram
   { _diagramShapes     :: S.Set Shape
-  , _diagramBullet     :: S.Set Point
   , _diagramTexts      :: [TextZone]
   , _diagramsStyles    :: M.Map String T.Text
   , _diagramCellWidth  :: !Int
@@ -43,6 +42,7 @@ data Anchor
   | AnchorSecondDiag  -- ^ Associated to '\'
 
   | AnchorPoint       -- ^ Kind of "end anchor", without continuation.
+  | AnchorBullet      -- ^ Used as a '*'
 
   | AnchorArrowUp     -- ^ Associated to '^'
   | AnchorArrowDown   -- ^ Associated to 'V'

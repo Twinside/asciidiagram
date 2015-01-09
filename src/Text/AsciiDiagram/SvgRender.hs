@@ -1,10 +1,13 @@
+{-# LANGUAGE CPP #-}
 module Text.AsciiDiagram.SvgRender( svgOfDiagram ) where
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Monoid( mempty )
+#endif
 
 import Control.Applicative( (<$>) )
 import Control.Monad.State.Strict( execState )
-import Data.Monoid( Last( .. )
-                  , mempty
-                  , (<>) )
+import Data.Monoid( Last( .. ), (<>) )
 
 import Graphics.Svg.Types
                    ( HasDrawAttributes( .. )
@@ -252,14 +255,18 @@ segmentCorrectionVector gscale _ seg =
 
 
 straightCorner :: GridSize -> Bool -> Maybe Point -> Point -> Maybe Point
-               -> Svg.Path
-straightCorner gscale True (Just before) p (Just after) =
-    lineTo $ anchorCorrection gscale before p after ^+^ toSvg gscale p
-straightCorner gscale True (Just before) p _ =
-    lineTo $ correctionVectorOf gscale before p ^+^ toSvg gscale p
-straightCorner gscale _ _ p _ = lineTo $ toSvg gscale p
-
-
+               -> ([Svg.Path], [Svg.Tree])
+straightCorner gscale isBullet pBefore p pAfter
+    | isBullet = ([lineTo finalPoint], [renderBullet gscale finalPoint])
+    | otherwise =  ([lineTo finalPoint], [])
+  where
+    pSvg = toSvg gscale p
+    finalPoint = case (pBefore, pAfter) of
+       (Just before, Just after) ->
+          anchorCorrection gscale before p after ^+^ pSvg
+       (Just before, _) -> 
+          correctionVectorOf gscale before p ^+^ pSvg
+       _ -> pSvg
 
 curveCorner :: GridSize -> Maybe Point -> Point -> Maybe Point -> Svg.Path
 curveCorner gscale _ p (Just after) =
@@ -322,6 +329,13 @@ toBottomArrow =
                , V2 1   2
                ]
 
+renderBullet :: GridSize -> Svg.RPoint -> Svg.Tree
+renderBullet gscale (V2 x y) = applyBulletDrawAttr $ Svg.CircleTree Svg.defaultSvg
+  { Svg._circleCenter = (Svg.Num x, Svg.Num y)
+  , Svg._circleRadius = Svg.Num $ halfWidth - 2
+  }
+  where halfWidth = _gridCellWidth gscale / 2
+
 shapeToTree :: GridSize -> Shape -> Svg.Tree
 shapeToTree gscale shape =
   case concat arrows of
@@ -338,7 +352,6 @@ shapeToTree gscale shape =
                . reorderShapePoints
                $ rollToSegment shape
 
-    isClosed = shapeIsClosed shape
     svgPath = dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands
     pathCommands =
       moveTo (startPoint gscale shapeElems)
@@ -363,8 +376,10 @@ shapeToTree gscale shape =
     toPath ((before, ShapeAnchor p a, after):rest) = anchorJoin : toPath rest
       where
         anchorJoin = case a of
-          AnchorPoint -> ([straightCorner gscale isClosed before p after], [])
-          AnchorMulti -> ([straightCorner gscale isClosed before p after], [])
+          AnchorPoint -> straightCorner gscale False before p after
+          AnchorMulti -> straightCorner gscale False before p after
+          AnchorBullet -> straightCorner gscale True before p after
+            
           AnchorFirstDiag -> ([curveCorner gscale before p after], [])
           AnchorSecondDiag -> ([curveCorner gscale before p after], [])
 
@@ -404,14 +419,6 @@ lightShapeGradient = Svg.ElementLinearGradient $
             ]
         }
 
-renderBullet :: GridSize -> Point -> Svg.Tree
-renderBullet gscale p = applyBulletDrawAttr $ Svg.CircleTree Svg.defaultSvg
-  { Svg._circleCenter = (Svg.Num x, Svg.Num y)
-  , Svg._circleRadius = Svg.Num $ halfWidth - 2
-  }
-  where V2 x y = toSvg gscale p
-        halfWidth = _gridCellWidth gscale / 2
-
 svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram diagram = Document
   { _viewBox = Nothing
@@ -419,7 +426,7 @@ svgOfDiagram diagram = Document
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
-  , _elements = closedSvg ++ lineSvg ++ bullets ++ textSvg
+  , _elements = closedSvg ++ lineSvg ++ textSvg
   , _definitions = M.fromList
         [("shape_light", lightShapeGradient)]
   , _description = ""
@@ -429,10 +436,6 @@ svgOfDiagram diagram = Document
     (closed, opened) = S.partition shapeIsClosed shapes
 
     shapes = _diagramShapes diagram
-
-    bullets = fmap (renderBullet scale)
-            . S.toList
-            $ _diagramBullet diagram
 
     closedSvg =
         applyDefaultShapeDrawAttr . shapeToTree scale <$> filter isShapePossible
