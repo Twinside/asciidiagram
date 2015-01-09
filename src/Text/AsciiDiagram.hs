@@ -87,11 +87,11 @@ cleanupShapes shapes board = runST $ do
 parseAsciiDiagram :: T.Text -> Diagram
 parseAsciiDiagram content = Diagram
     { _diagramShapes = validShapes
-    , _diagramBullet = bulletSet parsed
     , _diagramTexts = extractTextZones shapeCleanedText
     , _diagramsStyles = mempty
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines
+    , _diagramStyles = snd <$> styleLine parsed
     }
   where
     textLines = T.lines content

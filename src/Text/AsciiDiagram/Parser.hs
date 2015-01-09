@@ -66,6 +66,7 @@ data ParsingState = ParsingState
   , bulletSet      :: !(S.Set Point)
   , segmentSet     :: !(S.Set Segment)
   , currentSegment :: !(Maybe Segment)
+  , styleLine      :: [(Int, T.Text)]
   }
   deriving Show
 
@@ -75,6 +76,7 @@ emptyParsingState = ParsingState
     , bulletSet      = mempty
     , segmentSet     = mempty
     , currentSegment = Nothing
+    , styleLine      = mempty
     }
 
 type Parsing = State ParsingState
@@ -89,6 +91,9 @@ addSegment :: Segment -> Parsing ()
 addSegment seg = modify $ \s ->
    s { segmentSet = S.insert seg $ segmentSet s }
 
+addStyleLine :: (Int, T.Text) -> Parsing ()
+addStyleLine l = modify $ \s ->
+   s { styleLine = l : styleLine s }
 addBullet :: Point -> Parsing ()
 addBullet p = modify $ \s ->
    s { bulletSet = S.insert p $ bulletSet s }
@@ -130,6 +135,9 @@ stopVerticalSegment (Just seg) = do
 
 parseLine :: [Maybe Segment] -> (LineNumber, T.Text)
           -> Parsing [Maybe Segment]
+parseLine prevSegments (n, T.stripPrefix ":::" -> Just txt) = do
+    addStyleLine (n, txt)
+    return prevSegments
 parseLine prevSegments (lineNumber, txt) = TT.mapM go $ zip3 [0 ..] prevSegments stringLine
   where
     stringLine = T.unpack txt ++ repeat ' '

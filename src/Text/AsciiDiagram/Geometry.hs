@@ -27,6 +27,7 @@ data Diagram = Diagram
   , _diagramsStyles    :: M.Map String T.Text
   , _diagramCellWidth  :: !Int
   , _diagramCellHeight :: !Int
+  , _diagramStyles     :: [T.Text]
   }
   deriving (Eq, Show)
 

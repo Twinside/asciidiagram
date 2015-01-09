@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | This module will try to reconstruct closed shapes and
 -- lines from -- the set of anchors and segments.
@@ -14,6 +15,10 @@
 -- and segments.
 module Text.AsciiDiagram.Reconstructor( reconstruct ) where
 
+#if !MIN_VERSION_base(4,8,0)
+import Data.Monoid( mempty )
+#endif
+
 import Control.Applicative( (<$>) )
 import Control.Monad( when )
 import Control.Monad.State.Strict( execState )
@@ -21,7 +26,6 @@ import Control.Monad.State.Class( get )
 import Data.Function( on )
 import Data.List( sortBy )
 import Data.Maybe( catMaybes )
-import Data.Monoid( mempty )
 import qualified Data.Foldable as F
 import qualified Data.Set as S
 import qualified Data.Map as M
