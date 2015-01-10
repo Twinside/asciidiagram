@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-
 import Control.Applicative( (<$>) )
 import Control.Monad( foldM, forM )
 import Data.Monoid( (<>), mempty )
@@ -14,106 +13,13 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as H
 import Text.Blaze.Html.Renderer.Text
 
+import Graphics.Rasterific.Svg( renderSvgDocument
+                              , loadCreateFontCache )
+
+import Codec.Picture( writePng )
 import Text.AsciiDiagram
 import Text.Groom
 import Graphics.Svg
-
-test0 :: T.Text
-test0 =
-    "+------+\n" <>
-    "|      |\n" <>
-    "|      |\n" <>
-    "+------+\n"
-
-test1 :: T.Text
-test1 =
-    "/------\\\n" <>
-    "|      |\n" <>
-    "|      |\n" <>
-    "\\------/\n"
-
-testBadEnd :: T.Text
-testBadEnd =
-    "/---\\\n" <>
-    "|   |\n" <>
-    "\\---/\n"
-
-circleEnd :: T.Text
-circleEnd =
-    "/---\\\n" <>
-    "\\---/\n"
-
-verticalCircleEnd :: T.Text
-verticalCircleEnd =
-    "/\\\n" <>
-    "||\n" <>
-    "||\n" <>
-    "\\/\n"
-
-testBadEndStraight :: T.Text
-testBadEndStraight =
-    "+---+\n" <>
-    "|   |\n" <>
-    "+---+\n"
-
-test2 :: T.Text
-test2 =
-    "                   \n" <>
-    "  +------------+   \n" <>
-    "  |            |   \n" <>
-    "  |     /------+   \n" <>
-    "  |     |      |   \n" <>
-    "  |     |      |   \n" <>
-    "  +-----+------/   \n"
-
-test3 :: T.Text
-test3 =
-    "                   \n" <>
-    "  +--*---------+   \n" <>
-    "  |            |   \n" <>
-    "  |            |   \n" <>
-    "  |  /-----\\   +   \n" <>
-    "  |  |     |   |   \n" <>
-    "  |  |     |   |   \n" <>
-    "  |  \\-----/   |   \n" <>
-    "  +-----+------/   \n"
-
-testSmall :: T.Text
-testSmall =
-    "+++++\n" <>
-    "+++++\n" <>
-    "+++++\n" <>
-    "+++++\n"
-
-testMedium :: T.Text
-testMedium =
-    "++++++++++\n" <>
-    "++++++++++\n" <>
-    "++++++++++\n" <>
-    "++++++++++\n" <>
-    "++++++++++\n"
-
-test4 :: T.Text
-test4 =
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n"
-
-test5 :: T.Text
-test5 =
-    " ++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "+++++ +++++++++\n" <>
-    "+++++++++++++++\n" <>
-    "++++++++++ ++++\n" <>
-    "+++++++++++++++\n" <>
-    "++++++++++++++\n"
 
 testOutputFolder :: FilePath
 testOutputFolder = "test_output"
@@ -121,37 +27,29 @@ testOutputFolder = "test_output"
 toSvg :: [(String, T.Text)] -> IO ()
 toSvg lst = do
     createDirectoryIfMissing True testOutputFolder
-    hDoc <- foldM go mempty lst
+    cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
+    (hDoc, _) <- foldM go (mempty, cache) lst
     let html = renderHtml . H.html $ H.body hDoc
     TIO.writeFile (testOutputFolder </> "test.html") html
   where
-    go acc (name, content) = do
+    go (acc, cache) (name, content) = do
       let diagram = parseAsciiDiagram content
           fileName = name ++ ".svg"
+          pngname = name ++ ".png"
+          svgDoc = svgOfDiagram diagram
       putStrLn name
       putStrLn "================================="
       putStrLn $ groom diagram
 
-      saveXmlFile (testOutputFolder </> fileName) $ svgOfDiagram diagram 
-      return $ acc
-            <> H.img H.! H.src (H.toValue fileName)
+      saveXmlFile (testOutputFolder </> fileName) svgDoc
+      (img, _) <- renderSvgDocument cache Nothing svgDoc
+      writePng (testOutputFolder </> pngname) img
+      return . (, cache) $ acc
+            <> H.table
+                  (H.tr $ H.td (H.img H.! H.src (H.toValue fileName))
+                       <> H.td (H.img H.! H.src (H.toValue pngname)))
             <> H.pre (H.toHtml content)
 
-testList :: [(String, T.Text)]
-testList =
-    [("circleEnd", circleEnd)] <>
-    [("verticalCircleEnd", verticalCircleEnd)] <>
-    [("tbadend", testBadEnd)] <>
-    [("testBadEndStraight", testBadEndStraight)] <>
-    [("t0", test0)] <>
-    [("t1", test1)] <>
-    [("t2", test2)] <>
-    [("t3", test3)] <>
-    [("tsmall", testSmall)] <>
-    [("tmedium", testMedium)] <>
-    [("t4", test4)] <>
-    [("t5", test5)] <>
-    []
 
 loadTests :: IO [(String, T.Text)]
 loadTests = do
@@ -164,9 +62,5 @@ loadTests = do
 main :: IO ()
 main = do
   tests <- loadTests 
-  toSvg $ testList ++ tests ++
-      (
-    [("circleEnd", circleEnd)] <>
-    [("verticalCircleEnd", verticalCircleEnd)] <>
-    [])
+  toSvg tests
 
