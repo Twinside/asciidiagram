@@ -24,3 +24,7 @@ Documents go to hell,
 some of them are stored
 in the green database
 (not in the pink one)
+
+::: .s { fill: #AAF; }
+::: .d { fill: #AFA; }
+::: .io { fill: #FAA; }

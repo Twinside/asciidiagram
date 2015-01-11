@@ -42,14 +42,13 @@ toSvg lst = do
       putStrLn $ groom diagram
 
       saveXmlFile (testOutputFolder </> fileName) svgDoc
-      (img, _) <- renderSvgDocument cache Nothing svgDoc
+      (img, _) <- renderSvgDocument cache Nothing 96 svgDoc
       writePng (testOutputFolder </> pngname) img
       return . (, cache) $ acc
             <> H.table
                   (H.tr $ H.td (H.img H.! H.src (H.toValue fileName))
                        <> H.td (H.img H.! H.src (H.toValue pngname)))
             <> H.pre (H.toHtml content)
-
 
 loadTests :: IO [(String, T.Text)]
 loadTests = do

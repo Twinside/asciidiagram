@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 module Text.AsciiDiagram.DiagramCleaner
     ( isShapePossible
     ) where
@@ -92,12 +93,17 @@ checkClosed
 
 checkClosed _ = True
 
+isBullet :: ShapeElement -> Bool
+isBullet (ShapeAnchor _ AnchorBullet) = True
+isBullet _ = False
+
 checkOpened :: [ShapeElement] -> Bool
 checkOpened
       [ ShapeAnchor _ AnchorFirstDiag
       , ShapeAnchor _ AnchorSecondDiag] = False
 checkOpened [ ShapeAnchor _ AnchorSecondDiag
             , ShapeAnchor _ AnchorFirstDiag] = False
+checkOpened (all isBullet -> True) = False
 checkOpened _ = True
 
 checkOpenedShape :: Shape -> Bool

@@ -92,6 +92,7 @@ data ShapeElement
 data Shape = Shape
   { shapeElements :: [ShapeElement]
   , shapeIsClosed :: Bool
+  , shapeTags     :: S.Set T.Text
   }
   deriving (Eq, Ord, Show)
 

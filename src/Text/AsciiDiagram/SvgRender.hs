@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Text.AsciiDiagram.SvgRender( svgOfDiagram ) where
 
 #if !MIN_VERSION_base(4,8,0)
@@ -29,7 +30,7 @@ import Linear( V2( .. )
              , perp
              , normalize
              )
-import Control.Lens( zoom, (.=), (%=) )
+import Control.Lens( zoom, (.=), (%=), (%~), (&) )
 
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
@@ -52,11 +53,8 @@ toSvg s (V2 x y) =
 
 
 setDashingInformation :: (Svg.WithDrawAttributes a) => a -> a
-setDashingInformation = execState . zoom drawAttr $ do
-  attrClass %= Last . adding . getLast
-    where adding Nothing = Just "dashed_elem"
-          adding (Just v) = Just $ "dashed_elem " <> v
-
+setDashingInformation = execState $ do
+  drawAttr . attrClass %= ("dashed_elem":)
 
 isShapeDashed :: Shape -> Bool
 isShapeDashed = any isDashed . shapeElements where
@@ -67,7 +65,7 @@ isShapeDashed = any isDashed . shapeElements where
 applyDefaultShapeDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
     strokeColor .= toLC 0 0 0 255
-    attrClass %= Last . Just . maybe "filled_shape" ("filled_shape " ++) . getLast
+    attrClass %= ("filled_shape":) 
     strokeWidth .= toL (Svg.Num 1)
   where
     toL = Last . Just
@@ -86,9 +84,7 @@ applyLineArrowDrawAttr = execState . zoom drawAttr $ do
 
 applyBulletDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyBulletDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= Last . Just 
-                      . maybe "bullet" ("bullet" ++)
-                      . getLast
+    attrClass %= ("bullet":)
 
 applyDefaultLineDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultLineDrawAttr = execState . zoom drawAttr $ do
@@ -348,11 +344,14 @@ shapeToTree gscale shape =
       | isShapeDashed shape = setDashingInformation
       | otherwise = id
 
+    classSet e = e & drawAttr . attrClass %~ (++ S.toList (shapeTags shape))
+
     shapeElems = associateNextPoint (shapeIsClosed shape)
                . reorderShapePoints
                $ rollToSegment shape
 
-    svgPath = dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands
+    svgPath =
+        classSet . dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands
     pathCommands =
       moveTo (startPoint gscale shapeElems)
           : concat pathes ++ shapeClosing shape
@@ -430,10 +429,16 @@ svgOfDiagram diagram = Document
   , _definitions = M.fromList
         [("shape_light", lightShapeGradient)]
   , _description = ""
-  , _styleRules = cssRulesOfText . defaultCss $ _gridCellHeight scale
+  , _styleRules = defaultCssRules ++ customCssRules
   }
   where
     (closed, opened) = S.partition shapeIsClosed shapes
+
+    defaultCssRules =
+      cssRulesOfText . defaultCss $ _gridCellHeight scale
+
+    customCssRules = 
+      cssRulesOfText . T.unlines $ _diagramStyles diagram
 
     shapes = _diagramShapes diagram
 

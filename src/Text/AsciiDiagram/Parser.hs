@@ -132,7 +132,8 @@ parseLine :: [Maybe Segment] -> (LineNumber, T.Text)
 parseLine prevSegments (n, T.stripPrefix ":::" -> Just txt) = do
     addStyleLine (n, txt)
     return prevSegments
-parseLine prevSegments (lineNumber, txt) = TT.mapM go $ zip3 [0 ..] prevSegments stringLine
+parseLine prevSegments (lineNumber, txt) = 
+    TT.mapM go $ zip3 [0 ..] prevSegments stringLine
   where
     stringLine = T.unpack txt ++ repeat ' '
 
@@ -204,9 +205,9 @@ detectTagFromTextZone zones = (concat foundTags, concat normalZones) where
 
   splitTags _  _ [] = ([], [])
   splitTags y ix (thisTxt : rest)
-     | tlength > 3 && T.head thisTxt == '{' && T.last thisTxt == '}' = 
-        (TextZone (V2 y ix) tagText: afterTags, normalTexts)
-     | otherwise = (afterTags, TextZone (V2 y ix) thisTxt : normalTexts)
+     | tlength >= 3 && T.head thisTxt == '{' && T.last thisTxt == '}' = 
+        (TextZone (V2 ix y) tagText: afterTags, normalTexts)
+     | otherwise = (afterTags, TextZone (V2 ix y) thisTxt : normalTexts)
     where tlength = T.length thisTxt
           tagText = T.init $ T.drop 1 thisTxt
           (afterTags, normalTexts) = splitTags y (ix + tlength + 1) rest

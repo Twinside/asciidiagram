@@ -36,8 +36,8 @@ import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.Graph
 import Control.Lens
 
-import Debug.Trace
-import Text.Printf
+{-import Debug.Trace-}
+{-import Text.Printf-}
 {-import Text.Groom-}
 
 data Direction
@@ -163,17 +163,13 @@ toGraph anchors segs = execState graphCreator baseGraph where
     createLinks nextPoint = do
       nextExists <- has (vertices . ix nextPoint) <$> get
       let dirNext = nextPoint ^-^ p
-          tracor w yn = 
-            (trace $ printf "LANCHOR> %s %s -%s-> %s %s"
-                    (show p) (show a) (show dirNext) (show w) (show yn)) yn
           nextP = M.lookup nextPoint anchors
           nextIsOk = case nextP of
             Nothing -> True
-            Just AnchorArrowUp -> 
-                tracor nextP $ V2 0 (-1) == dirNext
-            Just AnchorArrowDown -> tracor nextP $ V2 0 1 == dirNext
-            Just AnchorArrowLeft -> tracor nextP $ V2 (-1) 0 == dirNext
-            Just AnchorArrowRight -> tracor nextP $ V2 1 0 == dirNext
+            Just AnchorArrowUp -> V2 0 (-1) == dirNext
+            Just AnchorArrowDown -> V2 0 1 == dirNext
+            Just AnchorArrowLeft -> V2 (-1) 0 == dirNext
+            Just AnchorArrowRight -> V2 1 0 == dirNext
             Just _ -> True
 
       alreadyLinked <- has (edges . ix (linkOf p nextPoint)) <$> get
@@ -228,7 +224,7 @@ reconstruct anchors segments =
     graph = toGraph anchors segments
     (cycles, filaments) = extractAllPrimitives graph
 
-    toShapes mustClose shapes = Shape shapeElems mustClose where
+    toShapes mustClose shapes = Shape shapeElems mustClose mempty where
       shapeElems =
         dedupEqual . filter (/= ShapeSegment mempty)
                    . catMaybes

@@ -7,10 +7,15 @@ module Text.AsciiDiagram
   , parseAsciiDiagram
   ) where
 
+import Data.Monoid( mempty )
+
+import Data.Monoid( (<>))
 import Control.Applicative( (<$>) )
 import Control.Monad( forM_ )
 import Control.Monad.ST( runST )
-import Data.Monoid( mempty )
+import Control.Monad.State.Strict( runState, put, get )
+import Data.Function( on )
+import Data.List( partition, sortBy )
 import qualified Data.Foldable as F
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -24,7 +29,8 @@ import Text.AsciiDiagram.SvgRender
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
 
-{-import Debug.Trace-}
+import Debug.Trace
+import Text.Groom
 {-import Text.Printf-}
 
 data CharBoard = CharBoard
@@ -65,29 +71,90 @@ charBoardOfText textLines = CharBoard
 
       VU.unsafeFreeze emptyBoard
 
-pointsOfShape :: F.Foldable f => f Shape -> [Point]
-pointsOfShape = F.concatMap (F.concatMap go . shapeElements) where
+data HorizontalPoints
+  = WithHorizontalSegments
+  | WithoutHorizontalSegments
+  deriving Eq
+
+allowsHorizontal :: HorizontalPoints -> Bool
+allowsHorizontal WithHorizontalSegments = True
+allowsHorizontal WithoutHorizontalSegments = False
+
+pointsOfShape :: F.Foldable f => HorizontalPoints -> f Shape -> [Point]
+pointsOfShape horizInfo = F.concatMap (F.concatMap go . shapeElements) where
+  withHorizontal = allowsHorizontal horizInfo
+
   go (ShapeAnchor p _) = [p]
   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey })
     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]]
     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]]
-    | sy == ey && sx >= ex = [V2 xx sy | xx <- [ex .. sx]]
-    | sy == ey             = [V2 xx sy | xx <- [sx .. ex]]
+    | withHorizontal && sy == ey && sx >= ex =
+        [V2 xx sy | xx <- [ex .. sx]]
+    | withHorizontal && sy == ey =
+        [V2 xx sy | xx <- [sx .. ex]]
     | otherwise            = []
 
 cleanupShapes :: (F.Foldable f) => f Shape -> CharBoard -> CharBoard
 cleanupShapes shapes board = runST $ do
   mutableBoard <- VU.thaw $ _boardData board
-  F.for_ (pointsOfShape shapes) $ \(V2 x y) ->
+  F.for_ (pointsOfShape WithHorizontalSegments shapes) $ \(V2 x y) ->
     let idx = x + y * _boardWidth board in
     VUM.unsafeWrite mutableBoard idx ' '
   outBoard <- VU.unsafeFreeze mutableBoard
   return $ board { _boardData = outBoard }
 
+pointComp :: Point -> Point -> Ordering
+pointComp (V2 x1 y1) (V2 x2 y2) = case compare y1 y2 of
+  EQ -> compare x1 x2
+  a -> a
+
+rangesOfShapes :: Shape -> [(Point, Point)]
+rangesOfShapes shape = pairAssoc sortedPoints
+  where
+   pairAssoc  [] = []
+   pairAssoc [_] = []
+   pairAssoc (p1@(V2 _ y1):lst@(p2@(V2 _ y2):rest))
+      | y1 == y2 = (p1, p2) : pairAssoc rest
+      | otherwise = pairAssoc lst
+
+   sortedPoints = sortBy pointComp
+                $ pointsOfShape WithoutHorizontalSegments [shape]
+
+
+associateTags :: [Shape] -> [TextZone] -> ([Shape], [TextZone])
+associateTags shapes tagZones = trace (trace "### TAGZONES:\n" groom sortedZones) $
+  expandTag $ runState (mapM go shapes) sortedZones where
+
+  sortedZones =
+    sortBy (pointComp `on` _textZoneOrigin) tagZones
+
+  isInRange (V2 px py) (V2 x1 y1, V2 x2 y2) =
+    py == y1 && py == y2 && x1 < px && px < x2
+  
+  expandTag (s, zones) = (s, fmap expander zones) where
+    expander t = t { _textZoneContent = "{" <> _textZoneContent t <> "}" }
+
+  insertAlls shape =
+    foldr S.insert (shapeTags shape) . fmap _textZoneContent
+
+  go shape | not $ shapeIsClosed shape = return shape
+  go shape = do
+    zones <- get
+
+    let ranges = rangesOfShapes shape
+        isInShape TextZone { _textZoneOrigin = orig } =
+          any (isInRange orig) ranges
+        (inRanges, other) = partition isInShape zones
+
+    put other
+
+    return shape { shapeTags = insertAlls shape inRanges }
+
+
 parseAsciiDiagram :: T.Text -> Diagram
 parseAsciiDiagram content = Diagram
-    { _diagramShapes = validShapes
-    , _diagramTexts = extractTextZones shapeCleanedText
+    { _diagramShapes = S.fromList taggedShape
+    , _diagramTexts = zones ++ unusedTags
     , _diagramsStyles = mempty
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines
@@ -95,8 +162,14 @@ parseAsciiDiagram content = Diagram
     }
   where
     textLines = T.lines content
+    (taggedShape, unusedTags) = associateTags (S.toList validShapes) tags
+
+    (tags, zones) = detectTagFromTextZone
+                  $ extractTextZones shapeCleanedText 
+
     shapeCleanedText =
-      textOfCharBoard . cleanupShapes validShapes $ charBoardOfText textLines
+      textOfCharBoard . cleanupShapes validShapes
+                      $ charBoardOfText textLines
     
     parsed = parseTextLines textLines
     reconstructed =
