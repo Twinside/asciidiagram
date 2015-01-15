@@ -95,8 +95,13 @@ addStyleLine l = modify $ \s ->
 continueHorizontalSegment :: Point -> Parsing ()
 continueHorizontalSegment p = modify $ \s ->
    s { currentSegment = Just . update $ currentSegment s }
-  where update Nothing = mempty { _segStart = p, _segEnd = p }
-        update (Just seg) = seg { _segEnd = p }
+  where update Nothing = mempty { _segStart = p
+                                , _segEnd = p
+                                , _segKind = SegmentHorizontal
+                                }
+        update (Just seg) = seg { _segEnd = p
+                                , _segKind = SegmentHorizontal
+                                }
 
 setHorizontaDashing :: Parsing ()
 setHorizontaDashing = modify $ \s ->
@@ -132,8 +137,10 @@ parseLine :: [Maybe Segment] -> (LineNumber, T.Text)
 parseLine prevSegments (n, T.stripPrefix ":::" -> Just txt) = do
     addStyleLine (n, txt)
     return prevSegments
-parseLine prevSegments (lineNumber, txt) = 
-    TT.mapM go $ zip3 [0 ..] prevSegments stringLine
+parseLine prevSegments (lineNumber, txt) = do
+    ret <- TT.mapM go $ zip3 [0 ..] prevSegments stringLine
+    stopHorizontalSegment
+    return ret
   where
     stringLine = T.unpack txt ++ repeat ' '
 

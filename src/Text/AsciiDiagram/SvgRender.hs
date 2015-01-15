@@ -400,7 +400,7 @@ textToTree gscale zone = Svg.TextArea Nothing txt
 defaultCss :: Float -> T.Text
 defaultCss textSize = T.pack $ printf
   ("\n" <>
-   "text { font-family: Consolas, monospace; font-size: %dpx }\n" <>
+   "text { font-family: Consolas, \"DejaVu Sans Mono\", monospace; font-size: %dpx }\n" <>
    ".dashed_elem { stroke-dasharray: 4, 3 }\n" <>
    ".filled_shape { fill: url(#shape_light) }\n" <>
    ".bullet { stroke-width: 1px; fill: white; stroke: black }\n"
