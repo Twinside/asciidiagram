@@ -29,8 +29,8 @@ import Text.AsciiDiagram.SvgRender
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
 
-import Debug.Trace
-import Text.Groom
+{-import Debug.Trace-}
+{-import Text.Groom-}
 {-import Text.Printf-}
 
 data CharBoard = CharBoard
@@ -94,6 +94,17 @@ pointsOfShape horizInfo = F.concatMap (F.concatMap go . shapeElements) where
         [V2 xx sy | xx <- [sx .. ex]]
     | otherwise            = []
 
+cleanLines :: (F.Foldable f) => f Int -> CharBoard -> CharBoard
+cleanLines idxs board = runST $ do
+  mutableBoard <- VU.thaw $ _boardData board
+  let xMax = _boardWidth board - 1
+  F.for_ idxs $ \y ->
+    F.for_ [0 .. xMax] $ \x ->
+        let idx = x + y * _boardWidth board in
+        VUM.unsafeWrite mutableBoard idx ' '
+  outBoard <- VU.unsafeFreeze mutableBoard
+  return $ board { _boardData = outBoard }
+
 cleanupShapes :: (F.Foldable f) => f Shape -> CharBoard -> CharBoard
 cleanupShapes shapes board = runST $ do
   mutableBoard <- VU.thaw $ _boardData board
@@ -122,7 +133,7 @@ rangesOfShapes shape = pairAssoc sortedPoints
 
 
 associateTags :: [Shape] -> [TextZone] -> ([Shape], [TextZone])
-associateTags shapes tagZones = trace (trace "### TAGZONES:\n" groom sortedZones) $
+associateTags shapes tagZones =
   expandTag $ runState (mapM go shapes) sortedZones where
 
   sortedZones =
@@ -158,7 +169,7 @@ parseAsciiDiagram content = Diagram
     , _diagramsStyles = mempty
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines
-    , _diagramStyles = snd <$> styleLine parsed
+    , _diagramStyles = styleLines
     }
   where
     textLines = T.lines content
@@ -167,8 +178,11 @@ parseAsciiDiagram content = Diagram
     (tags, zones) = detectTagFromTextZone
                   $ extractTextZones shapeCleanedText 
 
+    (styleLineNumber, styleLines) = unzip $ styleLine parsed
+
     shapeCleanedText =
-      textOfCharBoard . cleanupShapes validShapes
+      textOfCharBoard . cleanLines styleLineNumber
+                      . cleanupShapes validShapes
                       $ charBoardOfText textLines
     
     parsed = parseTextLines textLines
