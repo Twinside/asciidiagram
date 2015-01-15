@@ -3,6 +3,7 @@
 import Control.Applicative( (<$>) )
 import Control.Monad( foldM, forM )
 import Data.Monoid( (<>), mempty )
+import Data.List( sort )
 import qualified Data.Text as T
 import qualified Data.Text.IO as STIO
 import qualified Data.Text.Lazy.IO as TIO
@@ -48,13 +49,12 @@ toSvg lst = do
             <> H.table
                   (H.tr $ H.td (H.img H.! H.src (H.toValue fileName))
                        <> H.td (H.img H.! H.src (H.toValue pngname)))
-            <> H.pre (H.toHtml content)
+            <> H.pre (H.toHtml (name ++ "\n") <> H.toHtml content)
 
 loadTests :: IO [(String, T.Text)]
 loadTests = do
   let folder = "tests" </> "text"
-  content <-
-      filter (`notElem` [".", ".."]) <$> getDirectoryContents folder
+  content <- sort . filter (`notElem` [".", "", ".."]) <$> getDirectoryContents folder
   forM content $ \f ->
      (f,) <$> STIO.readFile (folder </> f)
 
