@@ -3,6 +3,8 @@
 module Text.AsciiDiagram.Graph
   ( Graph( .. )
   , PlanarVertice( .. )
+  , Filament
+  , Cycle
   , graphOfVertices
   , extractAllPrimitives
   , addVertice

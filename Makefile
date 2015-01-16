@@ -12,3 +12,5 @@ lint:
 run:
 	dist\build\test\test > out.txt 2>&1
 
+urun:
+	./dist/build/test/test > out.txt 2>&1

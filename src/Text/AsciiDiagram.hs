@@ -94,25 +94,21 @@ pointsOfShape horizInfo = F.concatMap (F.concatMap go . shapeElements) where
         [V2 xx sy | xx <- [sx .. ex]]
     | otherwise            = []
 
-cleanLines :: (F.Foldable f) => f Int -> CharBoard -> CharBoard
-cleanLines idxs board = runST $ do
-  mutableBoard <- VU.thaw $ _boardData board
-  let xMax = _boardWidth board - 1
-  F.for_ idxs $ \y ->
-    F.for_ [0 .. xMax] $ \x ->
-        let idx = x + y * _boardWidth board in
-        VUM.unsafeWrite mutableBoard idx ' '
-  outBoard <- VU.unsafeFreeze mutableBoard
-  return $ board { _boardData = outBoard }
+cleanLines :: [Int] -> CharBoard -> CharBoard
+cleanLines idxs board = board { _boardData = _boardData board VU.// toSet }
+  where
+    xMax = _boardWidth board - 1
+    toSet = [(lineIndex + column, ' ')
+                          | lineNum <- idxs
+                          , let lineIndex = lineNum * _boardWidth board
+                          , column <- [0 .. xMax]
+                          ]
 
 cleanupShapes :: (F.Foldable f) => f Shape -> CharBoard -> CharBoard
-cleanupShapes shapes board = runST $ do
-  mutableBoard <- VU.thaw $ _boardData board
-  F.for_ (pointsOfShape WithHorizontalSegments shapes) $ \(V2 x y) ->
-    let idx = x + y * _boardWidth board in
-    VUM.unsafeWrite mutableBoard idx ' '
-  outBoard <- VU.unsafeFreeze mutableBoard
-  return $ board { _boardData = outBoard }
+cleanupShapes shapes board = board { _boardData = _boardData board VU.// toSet }
+  where toSet = [(x + y * _boardWidth board, ' ')
+                    | V2 x y <- pointsOfShape WithHorizontalSegments shapes]
+
 
 pointComp :: Point -> Point -> Ordering
 pointComp (V2 x1 y1) (V2 x2 y2) = case compare y1 y2 of
