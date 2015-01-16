@@ -332,26 +332,60 @@ renderBullet gscale (V2 x y) = applyBulletDrawAttr $ Svg.CircleTree Svg.defaultS
   }
   where halfWidth = _gridCellWidth gscale / 2
 
+dashingSet :: (Svg.WithDrawAttributes a) => Shape -> a -> a
+dashingSet shape
+  | isShapeDashed shape = setDashingInformation
+  | otherwise = id
+
+classSet :: (Svg.WithDrawAttributes a) => Shape -> a -> a
+classSet shape e =
+  e & drawAttr . attrClass %~ (++ S.toList (shapeTags shape))
+
 shapeToTree :: GridSize -> Shape -> Svg.Tree
+shapeToTree gscale shape@Shape
+    { shapeIsClosed = True
+    , shapeElements =
+        [ ShapeSegment _
+        , ShapeAnchor p0 AnchorMulti
+        , ShapeSegment _
+        , ShapeAnchor p1 AnchorMulti
+        , ShapeSegment _
+        , ShapeAnchor p2 AnchorMulti
+        , ShapeSegment _
+        , ShapeAnchor p3 AnchorMulti ]
+    } = classSet shape
+      . dashingSet shape
+      . Svg.RectangleTree
+      $ Svg.defaultSvg
+          { Svg._rectWidth = Svg.Num sWidth
+          , Svg._rectHeight = Svg.Num sHeight
+          , Svg._rectUpperLeftCorner = (Svg.Num px, Svg.Num py) }
+  where
+    pts = [p0, p1, p2, p3]
+    mini = minimum pts
+    maxi = maximum pts
+    contraction = _gridShapeContraction gscale
+    contractionVector = V2 contraction contraction
+
+    maxiPoint = toSvg gscale maxi ^-^ contractionVector
+    pt@(V2 px py) = toSvg gscale mini ^+^ contractionVector 
+    V2 sWidth sHeight = maxiPoint ^-^ pt
+
+
+
 shapeToTree gscale shape =
   case concat arrows of
     [] -> svgPath
     lst -> Svg.GroupTree $ Svg.defaultSvg { Svg._groupChildren = svgPath : lst }
   where
     toS = toSvg gscale
-
-    dashingSet
-      | isShapeDashed shape = setDashingInformation
-      | otherwise = id
-
-    classSet e = e & drawAttr . attrClass %~ (++ S.toList (shapeTags shape))
-
     shapeElems = associateNextPoint (shapeIsClosed shape)
                . reorderShapePoints
                $ rollToSegment shape
 
-    svgPath =
-        classSet . dashingSet . Svg.Path $ Svg.PathPrim mempty pathCommands
+    svgPath = classSet shape . dashingSet shape . Svg.Path
+            $ Svg.PathPrim mempty pathCommands
+
     pathCommands =
       moveTo (startPoint gscale shapeElems)
           : concat pathes ++ shapeClosing shape
@@ -395,7 +429,7 @@ textToTree gscale zone = Svg.TextArea Nothing txt
         V2 (negate $ _gridCellWidth gscale)
            (_gridCellHeight gscale) ^* 0.5
     V2 x y = toSvg gscale (_textZoneOrigin zone) ^+^ correction
-    txt = Svg.textAt (Svg.Num x, Svg.Num y) $ _textZoneContent zone
+    txt = Svg.textAt (Svg.Num (x+0.5), Svg.Num (y+0.5)) $ _textZoneContent zone
 
 defaultCss :: Float -> T.Text
 defaultCss textSize = T.pack $ printf
@@ -418,6 +452,8 @@ lightShapeGradient = Svg.ElementLinearGradient $
             ]
         }
 
+-- | Transform an Ascii diagram to a SVG document which
+-- can be saved or converted to an image.
 svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram diagram = Document
   { _viewBox = Nothing

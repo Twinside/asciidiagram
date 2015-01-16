@@ -1,13 +1,42 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+-- | This module gives access to the ascii diagram parser and
+-- SVG renderer.
+--
+-- To render the diagram as a PNG file, you have to use the
+-- library rasterific-svg and JuicyPixels.
+--
+-- As a sample usage, to save a diagram to png, you can use
+-- the following snippet.
+--
+-- > import Codec.Picture( writePng )
+-- > import Text.AsciiDiagram( imageOfDiagram )
+-- > import Graphics.Rasterific.Svg( loadCreateFontCache )
+-- >
+-- > saveDiagramToFile :: FilePath -> Diagram -> IO ()
+-- > saveDiagramToFile path diag = do
+-- >   cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
+-- >   imageOfDiagram cache 96 diag
+-- >   writePng path img
+--
 module Text.AsciiDiagram
-  ( Diagram( .. ) 
-  , TextZone( .. )
-  , svgOfDiagram
+  ( -- * Main functions
+    svgOfDiagram
   , parseAsciiDiagram
-  ) where
+  , saveAsciiDiagramAsSvg
+  , imageOfDiagram
 
-import Data.Monoid( mempty )
+    -- * Document description
+  , Diagram( .. ) 
+  , TextZone( .. )
+  , Shape( .. )
+  , ShapeElement( .. )
+  , Anchor( .. )
+  , Segment( .. )
+  , SegmentKind( .. )
+  , SegmentDraw( .. )
+  , Point
+  ) where
 
 import Data.Monoid( (<>))
 import Control.Applicative( (<$>) )
@@ -28,6 +57,11 @@ import Text.AsciiDiagram.Reconstructor
 import Text.AsciiDiagram.SvgRender
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
+
+import Codec.Picture( Image, PixelRGBA8 )
+import Graphics.Text.TrueType( FontCache )
+import Graphics.Svg( Dpi, saveXmlFile )
+import Graphics.Rasterific.Svg( renderSvgDocument )
 
 {-import Debug.Trace-}
 {-import Text.Groom-}
@@ -158,11 +192,11 @@ associateTags shapes tagZones =
     return shape { shapeTags = insertAlls shape inRanges }
 
 
+-- | Analyze an ascii diagram and extract all it's features.
 parseAsciiDiagram :: T.Text -> Diagram
 parseAsciiDiagram content = Diagram
     { _diagramShapes = S.fromList taggedShape
     , _diagramTexts = zones ++ unusedTags
-    , _diagramsStyles = mempty
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines
     , _diagramStyles = styleLines
@@ -185,4 +219,17 @@ parseAsciiDiagram content = Diagram
     reconstructed =
       reconstruct (anchorMap parsed) $ segmentSet parsed
     validShapes = S.filter isShapePossible reconstructed
+
+-- | Helper function helping you save a diagram as
+-- a SVG file on disk.
+saveAsciiDiagramAsSvg :: FilePath -> Diagram -> IO ()
+saveAsciiDiagramAsSvg fileName diagram =
+  saveXmlFile fileName $ svgOfDiagram diagram
+
+-- | Render a Diagram as an image. a good value for the Dpi
+-- is 96. The IO dependency is there to allow loading of the
+-- font files used in the document.
+imageOfDiagram :: FontCache -> Dpi -> Diagram -> IO (Image PixelRGBA8)
+imageOfDiagram cache dpi = 
+  fmap fst . renderSvgDocument cache Nothing dpi . svgOfDiagram
 
