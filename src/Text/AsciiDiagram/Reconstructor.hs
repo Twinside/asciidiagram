@@ -215,18 +215,40 @@ dedupEqual [] = []
 dedupEqual (x:rest@(y:_)) | x == y = dedupEqual rest
 dedupEqual (x:xs) = x : dedupEqual xs
 
+
+-- | Break filaments at multi anchor to ensure proper dashing
+-- of the segments.
+breakFilaments :: Filament ShapeElement -> [Filament ShapeElement]
+breakFilaments = go where
+  go lst = f : fs
+    where (f, fs) = breaker lst
+
+  breaker [] = ([], [])
+  breaker [a@(ShapeAnchor _ AnchorMulti)] = ([a], [])
+  breaker (a@(ShapeAnchor _ AnchorMulti):xs) = ([a], (a:filamentRest):others)
+    where (filamentRest, others) = breaker xs
+  breaker (x:xs) = (x:filamentRest, others)
+    where (filamentRest, others) = breaker xs
+
+
 -- | Main call of the reconstruction function
 reconstruct :: M.Map Point Anchor -> S.Set Segment
             -> S.Set Shape
 reconstruct anchors segments =
-   S.fromList $ fmap (toShapes True) cycles ++ fmap (toShapes False) filaments
+   S.fromList $ fmap toShapes cycles 
+             ++ concatMap toFilaments filaments
   where
     graph = toGraph anchors segments
     (cycles, filaments) = extractAllPrimitives graph
 
-    toShapes mustClose shapes = Shape shapeElems mustClose mempty where
-      shapeElems =
-        dedupEqual . filter (/= ShapeSegment mempty)
-                   . catMaybes
-                   $ fmap (`M.lookup` _vertices graph) shapes
+    
+    toElems = dedupEqual
+            . filter (/= ShapeSegment mempty)
+            . catMaybes
+            . fmap (`M.lookup` _vertices graph)
+
+    toFilaments shapes =
+      [Shape piece False mempty | piece <- breakFilaments $ toElems shapes] 
+
+    toShapes shapes = Shape (toElems shapes) True mempty
 
