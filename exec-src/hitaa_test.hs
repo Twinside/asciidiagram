@@ -19,7 +19,7 @@ import Graphics.Rasterific.Svg( renderSvgDocument
 
 import Codec.Picture( writePng )
 import Text.AsciiDiagram
-import Text.Groom
+{-import Text.Groom-}
 import Graphics.Svg
 
 testOutputFolder :: FilePath
@@ -39,8 +39,7 @@ toSvg lst = do
           pngname = name ++ ".png"
           svgDoc = svgOfDiagram diagram
       putStrLn name
-      putStrLn "================================="
-      putStrLn $ groom diagram
+      {-putStrLn $ groom diagram-}
 
       saveXmlFile (testOutputFolder </> fileName) svgDoc
       (img, _) <- renderSvgDocument cache Nothing 96 svgDoc

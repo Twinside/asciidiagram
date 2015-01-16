@@ -405,7 +405,7 @@ defaultCss textSize = T.pack $ printf
    ".filled_shape { fill: url(#shape_light) }\n" <>
    ".bullet { stroke-width: 1px; fill: white; stroke: black }\n"
   )
-  (floor textSize :: Int)
+  (2 + floor textSize :: Int)
 
 lightShapeGradient :: Svg.Element
 lightShapeGradient = Svg.ElementLinearGradient $
