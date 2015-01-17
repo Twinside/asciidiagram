@@ -4,7 +4,10 @@ all:
 	cabal build
 
 conf:
-	cabal configure --disable-library-profiling
+	cabal configure --enable-tests
+
+doc:
+	cabal haddock
 
 lint:
 	hlint .
@@ -14,3 +17,4 @@ run:
 
 urun:
 	./dist/build/test/test > out.txt 2>&1
+
