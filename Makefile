@@ -7,6 +7,7 @@ conf:
 	cabal configure --enable-tests
 
 doc:
+	dist\build\docgen\docgen
 	cabal haddock
 
 lint:

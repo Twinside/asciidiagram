@@ -13,6 +13,7 @@ maintainer:          vincent.berthoux@gmail.com
 category:            Text, Diagram
 build-type:          Simple
 extra-source-files:  changelog
+extra-doc-files:     docimages/*.svg
 cabal-version:       >=1.10
 
 Source-Repository head
@@ -64,6 +65,22 @@ Executable asciidiagram
                , asciidiagram
                , svg-tree
                , text
+Test-suite docgen
+    type: exitcode-stdio-1.0
+    default-language: Haskell2010
+    Main-Is: docgen.hs
+    ghc-options: -Wall
+    Hs-Source-Dirs: exec-src
+    Build-Depends: base >= 4.6
+                 , asciidiagram
+                 , text
+                 , containers
+                 , svg-tree
+                 , directory
+                 , filepath
+                 , rasterific-svg
+                 , JuicyPixels
+
 
 Test-Suite test
     type: exitcode-stdio-1.0

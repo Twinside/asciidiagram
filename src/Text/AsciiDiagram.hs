@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 -- | This module gives access to the ascii diagram parser and
 -- SVG renderer.
 --
@@ -19,8 +20,23 @@
 -- >   imageOfDiagram cache 96 diag
 -- >   writePng path img
 --
+--
 module Text.AsciiDiagram
-  ( -- * Main functions
+  ( -- * Diagram format
+
+    -- ** Lines
+    -- $linesdoc
+
+    -- ** Shapes
+    -- $shapesdoc
+
+    -- ** Bullets
+    -- $bulletdoc
+
+    -- ** Styles
+    -- $styledoc
+
+    -- * Functions
     svgOfDiagram
   , parseAsciiDiagram
   , saveAsciiDiagramAsSvg
@@ -233,3 +249,154 @@ imageOfDiagram :: FontCache -> Dpi -> Diagram -> IO (Image PixelRGBA8)
 imageOfDiagram cache dpi = 
   fmap fst . renderSvgDocument cache Nothing dpi . svgOfDiagram
 
+
+-- $linesdoc
+-- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n
+-- 
+-- 
+-- @
+--  -----       
+--    -------   
+--              
+--  |  |        
+--  |  |        
+--  |  \\----    
+--  |           
+--  +-----      
+-- @
+-- <<docimages/simple_lines.svg>>
+-- 
+-- You can use dashed lines by using ':' for vertical lines or '=' for\nhorizontal lines.
+-- 
+-- 
+-- @
+--  -----       
+--    -=-----   
+--              
+--  |  :        
+--  |  |        
+--  |  \\----    
+--  |           
+--  +--=--      
+-- @
+-- <<docimages/dashed_lines.svg>>
+-- 
+-- Arrows are made out of the \'\<\', \'\>\', \'^\' and \'v\'\ncharacters.\nIf the arrows are not connected to any lines, the text is left as is.\n
+-- 
+-- 
+-- @
+--      ^
+--      |
+--      |
+-- \<----+----\>
+--      |  \< \> v ^
+--      |
+--      v
+-- @
+-- <<docimages/arrows.svg>>
+-- 
+
+-- $shapesdoc
+-- If the lines are closed, then it is detected as such and rendered
+-- differently
+-- 
+-- 
+-- @
+--   +------+
+--   |      |
+--   |      +--+
+--   |      |  |
+--   +---+--+  |
+--       |     |
+--       +-----+
+-- @
+-- <<docimages/complexClosed.svg>>
+-- 
+-- If any of the segment posess one of the dashing markers (\':\' or \'=\')
+-- Then the full shape will be dashed.
+-- 
+-- 
+-- @
+--   +--+  +--+  +=-+  +=-+
+--   |  |  :  |  |  |  |  :
+--   +--+  +--+  +--+  +-=+
+-- @
+-- <<docimages/dashingClosed.svg>>
+-- 
+-- Any of the angle of a shape can curved one of the smooth corner anchor
+-- (\'\\\' or \'\/\')
+-- 
+-- 
+-- @
+--   \/--+  +--\\  +--+  \/--+
+--   |  |  |  |  |  |  |  |
+--   +--+  +--+  \\--+  +--+
+-- 
+--   \/--+  \/--\\  \/--+  \/--\\ .
+--   |  |  |  |  |  |  |  |
+--   +--\/  +--+  \\--\/  +--\/
+-- 
+--   \/--\\ .
+--   |  |
+--   \\--\/
+-- .
+-- @
+-- <<docimages/curvedCorner.svg>>
+-- 
+
+-- $bulletdoc
+-- Adding a \'*\' on a line or on a shape add a little circle on it.
+-- If the bullet is not attached to any shape or lines, then it
+-- will be render like any other text.
+-- 
+-- 
+-- @
+--   *-*-*
+--   |   |  *----*
+--   +---\/       |
+--           * * *
+-- @
+-- <<docimages/bulletTest.svg>>
+-- 
+-- When used at connection points, it behaves like the \'+\' anchor.
+-- 
+
+-- $styledoc
+-- The shapes can ba annotated with a tag like `{tagname}`.
+-- Tags will be inserted in the class attribute of the shape
+-- and can then be stylized with a CSS.
+-- 
+-- 
+-- @
+--  +--------+         +--------+
+--  | Source +--------\>| op1    |
+--  | {src}  |         \\---+----\/
+--  +--------+             |
+--             +-------*\<--\/
+--  +------+\<--| op2   |
+--  | Dest |   +-------+
+--  |{dst} |
+--  +------+
+-- 
+-- ::: .src { fill: #AAF; }
+-- ::: .dst { stroke: #FAA; stroke-width: 3px; }
+-- @
+-- <<docimages/styleExample.svg>>
+-- 
+-- Inline css styles are introduced with the ":::" prefix
+-- at the beginning of the line. They are introduced in the
+-- style section of the generated CSS file
+-- 
+-- The generated geometry also possess some predefined class
+-- which are overidable:
+-- 
+--  * "dashed_elem" is applyied on every dashed element.
+-- 
+--  * "filled_shape" is applyied on every closed shape.
+-- 
+--  * "bullet" on every bullet placed on a shape or line.
+-- 
+--  * "line_element" on every line element, this include the arrow head.
+-- 
+-- You can then customize the appearance of the diagram as you want.
+-- 

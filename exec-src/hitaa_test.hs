@@ -19,7 +19,7 @@ import Graphics.Rasterific.Svg( renderSvgDocument
 
 import Codec.Picture( writePng )
 import Text.AsciiDiagram
-{-import Text.Groom-}
+import Text.Groom
 import Graphics.Svg
 
 testOutputFolder :: FilePath
@@ -39,7 +39,7 @@ toSvg lst = do
           pngname = name ++ ".png"
           svgDoc = svgOfDiagram diagram
       putStrLn name
-      {-putStrLn $ groom diagram-}
+      putStrLn $ groom diagram
 
       saveXmlFile (testOutputFolder </> fileName) svgDoc
       (img, _) <- renderSvgDocument cache Nothing 96 svgDoc
@@ -53,7 +53,8 @@ toSvg lst = do
 loadTests :: IO [(String, T.Text)]
 loadTests = do
   let folder = "tests" </> "text"
-  content <- sort . filter (`notElem` [".", "", ".."]) <$> getDirectoryContents folder
+  content <- -- return ["art3.txt"]
+     sort . filter (`notElem` [".", "", ".."]) <$> getDirectoryContents folder
   forM content $ \f ->
      (f,) <$> STIO.readFile (folder </> f)
 

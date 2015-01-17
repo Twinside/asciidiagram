@@ -88,6 +88,7 @@ applyBulletDrawAttr = execState . zoom drawAttr $ do
 
 applyDefaultLineDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultLineDrawAttr = execState . zoom drawAttr $ do
+    attrClass %= ("line_element":)
     fillColor .= toL Svg.FillNone
     strokeColor .= toLC 0 0 0 255
     strokeWidth .= toL (Svg.Num 1)
