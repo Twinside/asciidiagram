@@ -1,0 +1,37 @@
+<?xml version='1.0' ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="275.0" height="187.0">
+  <style type="text/css">text {
+  font-family: Consolas , &quot;DejaVu Sans Mono&quot; , monospace;
+  font-size: 16.0px;
+}
+.dashed_elem {
+  stroke-dasharray: 4.0 , 3.0;
+}
+.filled_shape {
+  fill: url(#shape_light);
+}
+.bullet {
+  stroke-width: 1.0px;
+  fill: #FFFFFF;
+  stroke: #000000;
+}
+</style>
+  <defs>
+    <linearGradient id="shape_light" gradientTransform="" gradientUnits="objectBoundingBox" spreadMethod="pad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5F5F5" />
+      <stop offset="100%" stop-color="#D8D8D8" />
+    </linearGradient>
+  </defs>
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M31.5,28.0 L31.5,28.0 L31.5,40.5 L50.0,40.5 L58.5,40.5 L58.5,28.0 L58.5,15.5 L40.0,15.5 S30.0,14.0 31.5,28.0 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M31.5,84.0 L31.5,84.0 L31.5,96.5 L50.0,96.5 S60.0,98.0 58.5,84.0 L58.5,84.0 L58.5,71.5 L40.0,71.5 S30.0,70.0 31.5,84.0 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M31.5,140.0 L31.5,140.0 S30.0,154.0 40.0,152.5 L50.0,152.5 S60.0,154.0 58.5,140.0 L58.5,140.0 S60.0,126.0 50.0,127.5 L40.0,127.5 S30.0,126.0 31.5,140.0 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M91.5,28.0 L91.5,28.0 L91.5,40.5 L110.0,40.5 L118.5,40.5 L118.5,28.0 S120.0,14.0 110.0,15.5 L100.0,15.5 L91.5,15.5 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M91.5,84.0 L91.5,84.0 L91.5,96.5 L110.0,96.5 L118.5,96.5 L118.5,84.0 S120.0,70.0 110.0,71.5 L100.0,71.5 S90.0,70.0 91.5,84.0 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M151.5,28.0 L151.5,28.0 S150.0,42.0 160.0,40.5 L170.0,40.5 L178.5,40.5 L178.5,28.0 L178.5,15.5 L160.0,15.5 L151.5,15.5 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M151.5,84.0 L151.5,84.0 S150.0,98.0 160.0,96.5 L170.0,96.5 S180.0,98.0 178.5,84.0 L178.5,84.0 L178.5,71.5 L160.0,71.5 S150.0,70.0 151.5,84.0 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M211.5,28.0 L211.5,28.0 L211.5,40.5 L230.0,40.5 L238.5,40.5 L238.5,28.0 L238.5,15.5 L220.0,15.5 S210.0,14.0 211.5,28.0 Z" />
+  <path stroke-width="1.0" stroke="#000000" class="filled_shape" d="M211.5,84.0 L211.5,84.0 L211.5,96.5 L230.0,96.5 S240.0,98.0 238.5,84.0 L238.5,84.0 S240.0,70.0 230.0,71.5 L220.0,71.5 S210.0,70.0 211.5,84.0 Z" />
+  <text class="" x="255.5" y="77.5">.</text>
+  <text class="" x="75.5" y="133.5">. </text>
+  <text class="" x="5.5" y="175.5">. </text>
+</svg>

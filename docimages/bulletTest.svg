@@ -1,0 +1,38 @@
+<?xml version='1.0' ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="165.0" height="75.0">
+  <style type="text/css">text {
+  font-family: Consolas , &quot;DejaVu Sans Mono&quot; , monospace;
+  font-size: 16.0px;
+}
+.dashed_elem {
+  stroke-dasharray: 4.0 , 3.0;
+}
+.filled_shape {
+  fill: url(#shape_light);
+}
+.bullet {
+  stroke-width: 1.0px;
+  fill: #FFFFFF;
+  stroke: #000000;
+}
+</style>
+  <defs>
+    <linearGradient id="shape_light" gradientTransform="" gradientUnits="objectBoundingBox" spreadMethod="pad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5F5F5" />
+      <stop offset="100%" stop-color="#D8D8D8" />
+    </linearGradient>
+  </defs>
+  <g stroke-width="1.0" stroke="#000000" class="filled_shape">
+    <path class="" d="M31.5,28.0 L31.5,28.0 L31.5,40.5 L60.0,40.5 S70.0,42.0 68.5,28.0 L68.5,28.0 L68.5,15.5 L60.0,15.5 L50.0,15.5 L40.0,15.5 L31.5,15.5 Z" />
+    <circle class="bullet" cx="68.5" cy="15.5" r="3.0" />
+    <circle class="bullet" cx="50.0" cy="15.5" r="3.0" />
+    <circle class="bullet" cx="31.5" cy="15.5" r="3.0" />
+  </g>
+  <g stroke-width="1.0" stroke="#000000" fill="none" class="line_element">
+    <path class="" d="M150.0,56.0 L150.0,56.0 L150.0,42.0 L150.0,28.0 L110.0,28.0 L100.0,28.0" />
+    <circle class="bullet" cx="150.0" cy="56.0" r="3.0" />
+    <circle class="bullet" cx="150.0" cy="28.0" r="3.0" />
+    <circle class="bullet" cx="100.0" cy="28.0" r="3.0" />
+  </g>
+  <text class="" x="105.5" y="63.5">* * </text>
+</svg>
