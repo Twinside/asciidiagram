@@ -146,10 +146,18 @@ segmentManathanLength seg = x + y where
   V2 x y = abs <$> _segEnd seg ^-^ _segStart seg
 
 
+segmentDirectionMap :: S.Set Segment -> M.Map Point SegmentKind
+segmentDirectionMap = S.fold go mempty where
+  go seg = M.insert (_segEnd seg) k . M.insert (_segStart seg) k
+    where
+      k = _segKind seg
+
 toGraph :: M.Map Point Anchor -> S.Set Segment
         -> Graph Point ShapeElement Segment
 toGraph anchors segs = execState graphCreator baseGraph where
   baseGraph = graphOfVertices $ M.mapWithKey ShapeAnchor anchors
+
+  segDirs = segmentDirectionMap segs
 
   graphCreator = do
     F.traverse_ linkSegments segs
@@ -164,13 +172,18 @@ toGraph anchors segs = execState graphCreator baseGraph where
       nextExists <- has (vertices . ix nextPoint) <$> get
       let dirNext = nextPoint ^-^ p
           nextP = M.lookup nextPoint anchors
-          nextIsOk = case nextP of
-            Nothing -> True
-            Just AnchorArrowUp -> V2 0 (-1) == dirNext
-            Just AnchorArrowDown -> V2 0 1 == dirNext
-            Just AnchorArrowLeft -> V2 (-1) 0 == dirNext
-            Just AnchorArrowRight -> V2 1 0 == dirNext
-            Just _ -> True
+          nextS = M.lookup nextPoint segDirs
+          nextIsOk = case (nextP, nextS) of
+            (Just AnchorArrowUp, _) -> V2 0 (-1) == dirNext
+            (Just AnchorArrowDown, _) -> V2 0 1 == dirNext
+            (Just AnchorArrowLeft, _) -> V2 (-1) 0 == dirNext
+            (Just AnchorArrowRight, _) -> V2 1 0 == dirNext
+            (Just _, _) -> True
+            (Nothing, Nothing) -> True
+            (Nothing, Just SegmentHorizontal) ->
+                (abs <$> dirNext) == V2 1 0
+            (Nothing, Just SegmentVertical) ->
+                (abs <$> dirNext) == V2 0 1
 
       alreadyLinked <- has (edges . ix (linkOf p nextPoint)) <$> get
       when (nextExists && nextIsOk && not alreadyLinked) $
@@ -241,7 +254,6 @@ reconstruct anchors segments =
     graph = toGraph anchors segments
     (cycles, filaments) = extractAllPrimitives graph
 
-    
     toElems = dedupEqual
             . filter (/= ShapeSegment mempty)
             . catMaybes
