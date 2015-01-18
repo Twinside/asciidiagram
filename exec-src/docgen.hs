@@ -9,7 +9,10 @@ import System.Directory( createDirectoryIfMissing )
 import System.FilePath( (</>) )
 
 import Text.AsciiDiagram
+import Codec.Picture( writePng )
 import Graphics.Svg
+import Graphics.Rasterific.Svg( renderSvgDocument
+                              , loadCreateFontCache )
 
 docOutputFolder :: FilePath
 docOutputFolder = "docimages"
@@ -23,6 +26,18 @@ toSvg lst = do
       let fileName = name ++ ".svg"
           svgDoc = svgOfDiagram $ parseAsciiDiagram content
       saveXmlFile (docOutputFolder </> fileName) svgDoc
+
+toPng :: [(String, T.Text)] -> IO ()
+toPng lst = do
+    createDirectoryIfMissing True docOutputFolder
+    cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
+    mapM_ (go cache) lst
+  where
+    go cache (name, content) = do
+      let fileName = name ++ ".png"
+          svgDoc = svgOfDiagram $ parseAsciiDiagram content
+      (img, _) <- renderSvgDocument cache Nothing 96 svgDoc
+      writePng (docOutputFolder </> fileName) img
 
 simpleLines :: T.Text
 simpleLines =
@@ -214,5 +229,6 @@ toHaskellFile docs =
 main :: IO ()
 main = do
   toSvg [(f, c) | Schema f c <- concatMap snd doc]
+  toPng [(f, c) | Schema f c <- concatMap snd doc]
   toHaskellFile $ [(t, toHaddock d)  | (t, d) <- doc]
 

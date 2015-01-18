@@ -85,7 +85,7 @@ runConversion opt = do
     (Nothing, FormatPng) -> savePng svgDoc
     (Just FormatPng, _) -> savePng svgDoc
   where
-    verbose a = when (_verbose opt) a
+    verbose = when $ _verbose opt
     saveDoc doc = do
       verbose . putStrLn $ "Writing SVG file " ++ _outputFile opt
       saveXmlFile (_outputFile opt) doc
