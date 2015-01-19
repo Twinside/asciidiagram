@@ -1,6 +1,5 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
 -- | This module gives access to the ascii diagram parser and
 -- SVG renderer.
 --
@@ -253,17 +252,15 @@ imageOfDiagram cache dpi =
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n
 -- 
--- 
--- @
---  -----       
---    -------   
---              
---  |  |        
---  |  |        
---  |  \\----    
---  |           
---  +-----      
--- @
+-- >-----       
+-- >  -------   
+-- >            
+-- >|  |        
+-- >|  |        
+-- >|  \----    
+-- >|           
+-- >+-----      
+--
 -- <<docimages/simple_lines.svg>>
 -- 
 -- You can use dashed lines by using ':' for vertical lines or '=' for\nhorizontal lines.
@@ -390,13 +387,13 @@ imageOfDiagram cache dpi =
 -- The generated geometry also possess some predefined class
 -- which are overidable:
 -- 
---  * "dashed_elem" is applyied on every dashed element.
+--  * `dashed_elem` is applyied on every dashed element.
 -- 
---  * "filled_shape" is applyied on every closed shape.
+--  * `filled_shape` is applyied on every closed shape.
 -- 
---  * "bullet" on every bullet placed on a shape or line.
+--  * `bullet` on every bullet placed on a shape or line.
 -- 
---  * "line_element" on every line element, this include the arrow head.
+--  * `line_element` on every line element, this include the arrow head.
 -- 
 -- You can then customize the appearance of the diagram as you want.
 -- 
