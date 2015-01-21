@@ -467,6 +467,7 @@ svgOfDiagram diagram = Document
         [("shape_light", lightShapeGradient)]
   , _description = ""
   , _styleRules = defaultCssRules ++ customCssRules
+  , _documentLocation = ""
   }
   where
     (closed, opened) = S.partition shapeIsClosed shapes
