@@ -226,17 +226,17 @@ anchorCorrection scale before p after
         v2 = correctionVectorOf scale p after
 
 
-moveTo, lineTo :: Svg.RPoint -> Svg.Path
+moveTo, lineTo :: Svg.RPoint -> Svg.PathCommand
 moveTo p = Svg.MoveTo Svg.OriginAbsolute [p]
 lineTo p = Svg.LineTo Svg.OriginAbsolute [p]
 
 
-smoothCurveTo :: Svg.RPoint -> Svg.RPoint -> Svg.Path
+smoothCurveTo :: Svg.RPoint -> Svg.RPoint -> Svg.PathCommand
 smoothCurveTo p1 p =
   Svg.SmoothCurveTo Svg.OriginAbsolute [(p1, p)]
 
 
-shapeClosing :: Shape -> [Svg.Path]
+shapeClosing :: Shape -> [Svg.PathCommand]
 shapeClosing Shape { shapeIsClosed = True } = [Svg.EndPath]
 shapeClosing _ = []
 
@@ -252,7 +252,7 @@ segmentCorrectionVector gscale _ seg =
 
 
 straightCorner :: GridSize -> Bool -> Maybe Point -> Point -> Maybe Point
-               -> ([Svg.Path], [Svg.Tree])
+               -> ([Svg.PathCommand], [Svg.Tree])
 straightCorner gscale isBullet pBefore p pAfter
     | isBullet = ([lineTo finalPoint], [renderBullet gscale finalPoint])
     | otherwise =  ([lineTo finalPoint], [])
@@ -265,7 +265,7 @@ straightCorner gscale isBullet pBefore p pAfter
           correctionVectorOf gscale before p ^+^ pSvg
        _ -> pSvg
 
-curveCorner :: GridSize -> Maybe Point -> Point -> Maybe Point -> Svg.Path
+curveCorner :: GridSize -> Maybe Point -> Point -> Maybe Point -> Svg.PathCommand
 curveCorner gscale _ p (Just after) =
     smoothCurveTo (toS p) $ toS after ^+^ correction
   where correction = correctionVectorOf gscale p after
@@ -277,7 +277,7 @@ curveCorner gscale (Just before) p Nothing =
 curveCorner gscale _ p _ = lineTo $ toSvg gscale p
 
 
-roundedCorner :: GridSize -> Point -> Point -> Maybe Point -> Svg.Path
+roundedCorner :: GridSize -> Point -> Point -> Maybe Point -> Svg.PathCommand
 roundedCorner gscale p1 p2 (Just lastPoint) =
     Svg.CurveTo Svg.OriginAbsolute [(toS p1, toS p2, toS lastPoint ^+^ vec)]
   where toS = toSvg gscale
@@ -287,7 +287,7 @@ roundedCorner gscale p1 p2 after =
 
 toPathRooted :: [Svg.RPoint] -> GridSize -> Point -> Svg.Tree
 toPathRooted pts gscale p =
-    applyLineArrowDrawAttr . Svg.Path $ Svg.PathPrim mempty pathCommands
+    applyLineArrowDrawAttr . Svg.PathTree $ Svg.Path mempty pathCommands
   where
     pt = fromIntegral <$> p
     sizes = V2 (_gridCellWidth gscale) (_gridCellHeight gscale)
@@ -384,8 +384,8 @@ shapeToTree gscale shape =
                . reorderShapePoints
                $ rollToSegment shape
 
-    svgPath = classSet shape . dashingSet shape . Svg.Path
-            $ Svg.PathPrim mempty pathCommands
+    svgPath = classSet shape . dashingSet shape . Svg.PathTree
+            $ Svg.Path mempty pathCommands
 
     pathCommands =
       moveTo (startPoint gscale shapeElems)
@@ -424,7 +424,7 @@ shapeToTree gscale shape =
 
 
 textToTree :: GridSize -> TextZone -> Svg.Tree
-textToTree gscale zone = Svg.TextArea Nothing txt
+textToTree gscale zone = Svg.TextTree Nothing txt
   where
     correction =
         V2 (negate $ _gridCellWidth gscale)
