@@ -3,7 +3,7 @@
 {-# LANGUAGE CPP #-}
 
 #if !MIN_VERSION_base(4,8,0)
-import Control.Applicative( (<*>) )
+import Control.Applicative( (<*>), pure )
 #endif
 
 import Control.Applicative( (<$>), (<|>) )
@@ -11,7 +11,8 @@ import Control.Monad( when )
 import Data.Monoid( (<>) )
 
 import qualified Data.Text.IO as STIO
-import System.FilePath( takeExtension )
+import System.FilePath( replaceExtension
+                      , takeExtension )
 
 import Graphics.Rasterific.Svg( renderSvgDocument
                               , loadCreateFontCache )
@@ -52,14 +53,16 @@ argParser = Options
             <> help "Text file of the Ascii diagram to parse."))
   <*> ( argument str
             (metavar "OUTPUTFILE"
-            <> help "Output file name.") )
+            <> help ("Output file name, same as input with"
+                    <> " different extension if unspecified."))
+        <|> pure "" )
   <*> ( switch (long "verbose" <> help "Display more information") )
   <*> ( flag Nothing (Just FormatSvg)
             (  long "svg"
             <> help "Force the use of the SVG format (deduced from extension otherwise)")
      <|> flag Nothing (Just FormatPng)
             ( long "png"
-            <> help "Force the use of the PNG format (deduced from extension otherwise)")
+            <> help "Force the use of the PNG format (deduced from extension otherwise) (by default)")
       )
 
 progOptions :: ParserInfo Options
@@ -72,7 +75,7 @@ formatOfOuputFilename :: FilePath -> Format
 formatOfOuputFilename f = case takeExtension f of
     ".png" -> FormatPng
     ".svg" -> FormatSvg
-    _ -> FormatSvg
+    _ -> FormatPng
 
 runConversion :: Options -> IO ()
 runConversion opt = do
@@ -88,14 +91,18 @@ runConversion opt = do
     verbose = when $ _verbose opt
     saveDoc doc = do
       verbose . putStrLn $ "Writing SVG file " ++ _outputFile opt
-      saveXmlFile (_outputFile opt) doc
+      saveXmlFile (savingPath "svg") doc
+
+    savingPath ext = case _outputFile opt of
+      "" -> replaceExtension (_inputFile opt) ext
+      p -> p
 
     savePng doc = do
       verbose . putStrLn $ "Loading/Building font cache (can be long)"
       cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
       verbose . putStrLn $ "Writing PNG file " ++ _outputFile opt
       (img, _) <- renderSvgDocument cache Nothing 96 doc
-      writePng (_outputFile opt) img
+      writePng (savingPath "png") img
 
 main :: IO ()
 main = execParser progOptions >>= runConversion
