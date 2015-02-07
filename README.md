@@ -3,6 +3,8 @@ Asciidiagram
 
 A freeform ASCII diagram parser for Haskell (inspired by Ditaa)
 
+[![Build Status](https://travis-ci.org/Twinside/asciidiagram.png?branch=master)](https://travis-ci.org/Twinside/asciidiagram)
+
 ---
 
 Lines and arrows
