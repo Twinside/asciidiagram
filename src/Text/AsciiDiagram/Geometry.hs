@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Defines the geometry extracted from the asciidiagram.
 module Text.AsciiDiagram.Geometry( Point
                                  , Vector
@@ -11,7 +12,10 @@ module Text.AsciiDiagram.Geometry( Point
                                  , TextZone( .. )
                                  ) where
 
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( Monoid( mappend, mempty ))
+#endif
+
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Linear( V2( .. ) )

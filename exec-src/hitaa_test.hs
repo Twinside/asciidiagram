@@ -1,8 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP #-}
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Monoid( mempty )
+#endif
+
 import Control.Applicative( (<$>) )
 import Control.Monad( foldM, forM )
-import Data.Monoid( (<>), mempty )
+import Data.Monoid( (<>) )
 import Data.List( sort )
 import qualified Data.Text as T
 import qualified Data.Text.IO as STIO

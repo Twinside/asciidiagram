@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 -- | Module in charge of finding the various segment
 -- in an ASCII text and the various anchors.
 module Text.AsciiDiagram.Parser( ParsingState( .. )
@@ -9,7 +10,9 @@ module Text.AsciiDiagram.Parser( ParsingState( .. )
                                , detectTagFromTextZone
                                ) where
 
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
+#endif
 
 import Control.Applicative( (<$>) )
 import Control.Monad( foldM, when )

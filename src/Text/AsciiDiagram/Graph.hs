@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE CPP #-}
 module Text.AsciiDiagram.Graph
   ( Graph( .. )
   , PlanarVertice( .. )
@@ -13,13 +15,16 @@ module Text.AsciiDiagram.Graph
   , edges
   ) where
 
+#if !MIN_VERSION_base(4,8,0)
+import Data.Monoid( Monoid( .. ), mempty )
+#endif
+
 import Control.Applicative( (<$>) )
 import Control.Monad( forM_, when )
 import Control.Monad.State.Strict( execState )
 import Control.Monad.State.Class( MonadState )
 import Data.Function( on )
 import Data.Maybe( fromMaybe )
-import Data.Monoid( Monoid( .. ), mempty )
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Control.Lens( Lens'

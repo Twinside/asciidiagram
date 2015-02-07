@@ -1,12 +1,14 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 module Text.AsciiDiagram.DiagramCleaner
     ( isShapePossible
     ) where
 
-import Control.Applicative( Applicative
-                          , (<$>)
-                          , (<*>)
-                          , liftA2 )
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative( Applicative, (<*>) )
+#endif
+
+import Control.Applicative( (<$>), liftA2 )
 import Data.List( tails )
 import Text.AsciiDiagram.Geometry
 import Linear( V2( V2 )
