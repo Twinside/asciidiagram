@@ -150,10 +150,10 @@ CSS file
 The generated geometry also possess some predefined class which are
 overidable:
 
- * `dashed\_elem` is applyied on every dashed element.
- * `filled\_shape` is applyied on every closed shape.
+ * `dashed_elem` is applyied on every dashed element.
+ * `filled_shape` is applyied on every closed shape.
  * `bullet` on every bullet placed on a shape or line.
- * `line\_element` on every line element, this include the arrow head.
+ * `line_element` on every line element, this include the arrow head.
 
 You can then customize the appearance of the diagram as you want.
 
