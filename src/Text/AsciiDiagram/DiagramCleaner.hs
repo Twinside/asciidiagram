@@ -106,6 +106,18 @@ checkOpened
 checkOpened [ ShapeAnchor _ AnchorSecondDiag
             , ShapeAnchor _ AnchorFirstDiag] = False
 checkOpened (all isBullet -> True) = False
+checkOpened
+      ( ShapeAnchor ap1 AnchorFirstDiag   -- '/'
+      : ShapeAnchor ap2 AnchorSecondDiag  -- '\'
+      : ShapeSegment s2
+      : _) = checkRoundedCorners (==) s1 ap1 ap2 s2
+    where s1 = mempty { _segEnd = ap1 }
+checkOpened
+      ( ShapeAnchor ap1 AnchorSecondDiag  -- '\'
+      : ShapeAnchor ap2 AnchorFirstDiag   -- '/'
+      : ShapeSegment s2
+      : _) = checkRoundedCorners (/=) s1 ap1 ap2 s2
+    where s1 = mempty { _segEnd = ap1 }
 checkOpened _ = True
 
 checkOpenedShape :: Shape -> Bool
