@@ -4,6 +4,20 @@
 -- | This module gives access to the ascii diagram parser and
 -- SVG renderer.
 --
+-- Ascii diagram, transform your ASCII art drawing to a nicer
+-- representation
+-- 
+-- @
+--                 \/---------+
+-- +---------+     |         |
+-- |  ASCII  +----\>| Diagram |
+-- +---------+     |         |
+-- |{flat}   |     +--+------\/
+-- \\---*-----\/\<=======\/
+-- ::: .flat { fill: #DDD; }
+-- @
+-- <<docimages/baseExample.svg>>
+-- 
 -- To render the diagram as a PNG file, you have to use the
 -- library rasterific-svg and JuicyPixels.
 --
@@ -20,9 +34,10 @@
 -- >   imageOfDiagram cache 96 diag
 -- >   writePng path img
 --
---
 module Text.AsciiDiagram
-  ( -- * Diagram format
+  ( 
+    -- $introDoc
+    -- * Diagram format
 
     -- ** Lines
     -- $linesdoc
@@ -35,6 +50,9 @@ module Text.AsciiDiagram
 
     -- ** Styles
     -- $styledoc
+
+    -- * Usage example
+    -- $example
 
     -- * Functions
     svgOfDiagram
@@ -214,7 +232,7 @@ parseAsciiDiagram content = Diagram
     { _diagramShapes = S.fromList taggedShape
     , _diagramTexts = zones ++ unusedTags
     , _diagramCellWidth = maximum $ fmap T.length textLines
-    , _diagramCellHeight = length textLines
+    , _diagramCellHeight = length textLines - length styleLines
     , _diagramStyles = styleLines
     }
   where
@@ -248,7 +266,6 @@ saveAsciiDiagramAsSvg fileName diagram =
 imageOfDiagram :: FontCache -> Dpi -> Diagram -> IO (Image PixelRGBA8)
 imageOfDiagram cache dpi = 
   fmap fst . renderSvgDocument cache Nothing dpi . svgOfDiagram
-
 
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n

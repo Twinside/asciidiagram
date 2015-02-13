@@ -125,6 +125,24 @@ styleExample =
   "::: .src { fill: #AAF; }\n" <>
   "::: .dst { stroke: #FAA; stroke-width: 3px; }\n"
 
+cabalExample :: T.Text
+cabalExample =
+  "                /---------+\n" <>
+  "+---------+     |         |\n" <>
+  "|  ASCII  +---->| Diagram |\n" <>
+  "+---------+     |         |\n" <>
+  "|         |     +--+------/\n" <>
+  "\\---*-----/<=======/\n"
+
+baseExample :: T.Text
+baseExample =
+  "                /---------+\n" <>
+  "+---------+     |         |\n" <>
+  "|  ASCII  +---->| Diagram |\n" <>
+  "+---------+     |         |\n" <>
+  "|{flat}   |     +--+------/\n" <>
+  "\\---*-----/<=======/\n" <>
+  "::: .flat { fill: #DDD; }"
 
 data Doc
   = P      T.Text
@@ -202,9 +220,18 @@ styleDoc =
       "You can then customize the appearance of the diagram as you want.\n")
   ]
 
+introDoc :: [Doc]
+introDoc =
+  [ P ("Ascii diagram, transform your ASCII art drawing to a nicer\n" <>
+       "representation")
+  , Schema "baseExample" baseExample
+  ]
+
 doc :: [(T.Text, [Doc])]
 doc =
-  [("linesdoc", linesDoc)
+  [("cabal", [Schema "cabalSchema" cabalExample])
+  ,("introDoc", introDoc)
+  ,("linesdoc", linesDoc)
   ,("shapesdoc", shapesDoc)
   ,("bulletdoc", bulletDoc)
   ,("styledoc", styleDoc)

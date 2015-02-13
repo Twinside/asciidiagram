@@ -7,6 +7,18 @@ A freeform ASCII diagram parser for Haskell (inspired by Ditaa)
 
 ---
 
+Without introduction, Asciidiagram transform this:
+                    /---------+
+    +---------+     |         |
+    |  ASCII  +---->| Diagram |
+    +---------+     |         |
+    |{flat}   |     +--+------/
+    \\---*-----/<=======/
+    ::: .flat { fill: #DDD; }
+
+into that:
+![Simili logo](../master/docimages/baseExample.png?raw=true "docimages/baseExample.svg")
+
 Lines and arrows
 ----------------
 
