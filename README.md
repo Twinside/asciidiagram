@@ -8,6 +8,7 @@ A freeform ASCII diagram parser for Haskell (inspired by Ditaa)
 ---
 
 Without introduction, Asciidiagram transform this:
+
                     /---------+
     +---------+     |         |
     |  ASCII  +---->| Diagram |
