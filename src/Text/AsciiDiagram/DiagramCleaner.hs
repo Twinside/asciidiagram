@@ -5,6 +5,7 @@ module Text.AsciiDiagram.DiagramCleaner
     ) where
 
 #if !MIN_VERSION_base(4,8,0)
+import Data.Monoid( mempty )
 import Control.Applicative( Applicative, (<*>) )
 #endif
 
