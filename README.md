@@ -14,7 +14,7 @@ Without introduction, Asciidiagram transform this:
     |  ASCII  +---->| Diagram |
     +---------+     |         |
     |{flat}   |     +--+------/
-    \\---*-----/<=======/
+    \---*-----/<=======/
     ::: .flat { fill: #DDD; }
 
 into that:
