@@ -55,12 +55,12 @@ library
 
   -- containers >= 0.5.2.1 for Set.elemAt
   build-depends: base >=4.6 && <4.9
-               , vector >= 0.9
-               , text       >= 1.0 && < 1.3
-               , linear     >= 1.3
-               , containers >= 0.4.2
-               , mtl        >= 1.1 && < 2.3
-               , lens       >= 4.5 && < 4.8
+               , vector >= 0.10
+               , text       >= 1.2 && < 1.3
+               , linear     >= 1.16
+               , containers >= 0.5
+               , mtl        >= 2.1 && < 2.3
+               , lens       >= 4.6 && < 4.8
                , svg-tree       >= 0.1 && < 0.2
                , rasterific-svg >= 0.1 && < 0.2
                , FontyFruity    >= 0.5 && < 0.6
