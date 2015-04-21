@@ -48,8 +48,8 @@ data GridSize = GridSize
 
 toSvg :: GridSize -> Point -> Svg.RPoint
 toSvg s (V2 x y) =
-  V2 (_gridCellWidth s * fromIntegral (x + 1))
-     (_gridCellHeight s * fromIntegral (y + 1))
+  V2 (realToFrac $ _gridCellWidth s * fromIntegral (x + 1))
+     (realToFrac $ _gridCellHeight s * fromIntegral (y + 1))
 
 
 setDashingInformation :: (Svg.WithDrawAttributes a) => a -> a
@@ -204,8 +204,8 @@ startPoint :: GridSize -> [(Maybe Point, ShapeElement, Maybe Point)]
 startPoint gscale shapeElems = case shapeElems of
     [] -> V2 0 0
     (Just before, ShapeAnchor p _, Just after):_ -> toS p ^+^ combined
-        where v1 = correctionVector before p
-              v2 = correctionVector p after
+        where v1 = realToFrac <$> correctionVector before p
+              v2 = realToFrac <$> correctionVector p after
               combined | v1 == v2 = v1
                        | otherwise = v1 ^+^ v2
     (before, ShapeSegment seg, _):_ -> pp ^+^ vc where
@@ -220,10 +220,10 @@ startPoint gscale shapeElems = case shapeElems of
 anchorCorrection :: GridSize -> Point -> Point -> Point
                  -> Svg.RPoint
 anchorCorrection scale before p after
-  | v1 == v2 = v1
+  | v1 == v2 = realToFrac <$> v1
   | otherwise = v1 ^+^ v2
-  where v1 = correctionVectorOf scale before p
-        v2 = correctionVectorOf scale p after
+  where v1 = realToFrac <$> correctionVectorOf scale before p
+        v2 = realToFrac <$> correctionVectorOf scale p after
 
 
 moveTo, lineTo :: Svg.RPoint -> Svg.PathCommand
@@ -243,12 +243,12 @@ shapeClosing _ = []
 
 segmentCorrectionVector :: GridSize -> Maybe Point -> Segment -> Svg.RPoint
 segmentCorrectionVector gscale before seg | _segStart seg == _segEnd seg =
-  case (before, _segKind seg) of
+  realToFrac <$> case (before, _segKind seg) of
     (Just v1, _) -> correctionVectorOf gscale v1 (_segEnd seg)
     (Nothing, SegmentHorizontal) -> V2 0 $ _gridShapeContraction gscale
     (Nothing, SegmentVertical) -> V2 (negate $ _gridShapeContraction gscale) 0
 segmentCorrectionVector gscale _ seg =
-    correctionVectorOf gscale (_segStart seg) (_segEnd seg)
+    realToFrac <$> correctionVectorOf gscale (_segStart seg) (_segEnd seg)
 
 
 straightCorner :: GridSize -> Bool -> Maybe Point -> Point -> Maybe Point
@@ -262,17 +262,17 @@ straightCorner gscale isBullet pBefore p pAfter
        (Just before, Just after) ->
           anchorCorrection gscale before p after ^+^ pSvg
        (Just before, _) -> 
-          correctionVectorOf gscale before p ^+^ pSvg
+          (realToFrac <$> correctionVectorOf gscale before p) ^+^ pSvg
        _ -> pSvg
 
 curveCorner :: GridSize -> Maybe Point -> Point -> Maybe Point -> Svg.PathCommand
 curveCorner gscale _ p (Just after) =
     smoothCurveTo (toS p) $ toS after ^+^ correction
-  where correction = correctionVectorOf gscale p after
+  where correction = realToFrac <$> correctionVectorOf gscale p after
         toS = toSvg gscale
 curveCorner gscale (Just before) p Nothing =
     smoothCurveTo (toS p) $ toS p ^+^ vec
-  where vec = correctionVectorOf gscale before p
+  where vec = realToFrac <$> correctionVectorOf gscale before p
         toS = toSvg gscale
 curveCorner gscale _ p _ = lineTo $ toSvg gscale p
 
@@ -281,7 +281,7 @@ roundedCorner :: GridSize -> Point -> Point -> Maybe Point -> Svg.PathCommand
 roundedCorner gscale p1 p2 (Just lastPoint) =
     Svg.CurveTo Svg.OriginAbsolute [(toS p1, toS p2, toS lastPoint ^+^ vec)]
   where toS = toSvg gscale
-        vec = correctionVectorOf gscale p2 lastPoint
+        vec = realToFrac <$> correctionVectorOf gscale p2 lastPoint
 roundedCorner gscale p1 p2 after =
     curveCorner gscale (Just p1) p2 after
 
@@ -290,7 +290,8 @@ toPathRooted pts gscale p =
     applyLineArrowDrawAttr . Svg.PathTree $ Svg.Path mempty pathCommands
   where
     pt = fromIntegral <$> p
-    sizes = V2 (_gridCellWidth gscale) (_gridCellHeight gscale)
+    sizes =
+      realToFrac <$> V2 (_gridCellWidth gscale) (_gridCellHeight gscale)
 
     toGrid pp = lineTo $ (pt ^+^ pp) * sizes
     pathCommands = case pts of
@@ -328,8 +329,8 @@ toBottomArrow =
 
 renderBullet :: GridSize -> Svg.RPoint -> Svg.Tree
 renderBullet gscale (V2 x y) = applyBulletDrawAttr $ Svg.CircleTree Svg.defaultSvg
-  { Svg._circleCenter = (Svg.Num x, Svg.Num y)
-  , Svg._circleRadius = Svg.Num $ halfWidth - 2
+  { Svg._circleCenter = (Svg.Num $ realToFrac x, Svg.Num $ realToFrac y)
+  , Svg._circleRadius = Svg.Num . realToFrac $ halfWidth - 2
   }
   where halfWidth = _gridCellWidth gscale / 2
 
@@ -366,7 +367,7 @@ shapeToTree gscale shape@Shape
     mini = minimum pts
     maxi = maximum pts
     contraction = _gridShapeContraction gscale
-    contractionVector = V2 contraction contraction
+    contractionVector = realToFrac <$> V2 contraction contraction
 
     maxiPoint = toSvg gscale maxi ^-^ contractionVector
     pt@(V2 px py) = toSvg gscale mini ^+^ contractionVector 
@@ -426,7 +427,7 @@ shapeToTree gscale shape =
 textToTree :: GridSize -> TextZone -> Svg.Tree
 textToTree gscale zone = Svg.TextTree Nothing txt
   where
-    correction =
+    correction = realToFrac <$>
         V2 (negate $ _gridCellWidth gscale)
            (_gridCellHeight gscale) ^* 0.5
     V2 x y = toSvg gscale (_textZoneOrigin zone) ^+^ correction
@@ -487,7 +488,7 @@ svgOfDiagram diagram = Document
         applyDefaultLineDrawAttr . shapeToTree strokeScale <$> S.toList opened
 
     toSvgSize accessor var =
-        Just . Svg.Num $ fromIntegral var * accessor scale + 5
+        Just . Svg.Num . realToFrac $ fromIntegral var * accessor scale + 5
 
     textSvg = textToTree scale <$> _diagramTexts diagram
 
