@@ -1,5 +1,8 @@
 -*-change-log-*-
 
+v1.1
+ * Bump: svg-tree & rasterific-svg dependencies
+
 v0.1
  * Initial version
 
