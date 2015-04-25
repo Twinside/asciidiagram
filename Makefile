@@ -10,6 +10,10 @@ doc:
 	dist\build\docgen\docgen
 	cabal haddock
 
+udoc:
+	./dist/build/docgen/docgen
+	cabal haddock
+
 lint:
 	hlint .
 
