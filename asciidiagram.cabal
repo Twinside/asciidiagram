@@ -60,7 +60,7 @@ library
                , linear     >= 1.16
                , containers >= 0.5
                , mtl        >= 2.1 && < 2.3
-               , lens       >= 4.6 && < 4.8
+               , lens       >= 4.6 && < 4.10
                , svg-tree       >= 0.3 && < 0.4
                , rasterific-svg >= 0.2 && < 0.3
                , FontyFruity    >= 0.5 && < 0.6
