@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -72,8 +73,11 @@ module Text.AsciiDiagram
   , Point
   ) where
 
-import Data.Monoid( (<>))
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative( (<$>) )
+#endif
+
+import Data.Monoid( (<>))
 import Control.Monad( forM_ )
 import Control.Monad.ST( runST )
 import Control.Monad.State.Strict( runState, put, get )

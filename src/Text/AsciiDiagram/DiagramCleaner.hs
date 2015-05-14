@@ -6,10 +6,10 @@ module Text.AsciiDiagram.DiagramCleaner
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
-import Control.Applicative( Applicative, (<*>) )
+import Control.Applicative( Applicative, (<*>), (<$>) )
 #endif
 
-import Control.Applicative( (<$>), liftA2 )
+import Control.Applicative( liftA2 )
 import Data.List( tails )
 import Text.AsciiDiagram.Geometry
 import Linear( V2( V2 )

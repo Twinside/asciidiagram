@@ -12,9 +12,9 @@ module Text.AsciiDiagram.Parser( ParsingState( .. )
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
+import Control.Applicative( (<$>) )
 #endif
 
-import Control.Applicative( (<$>) )
 import Control.Monad( foldM, when )
 import Control.Monad.State.Strict( State
                                  , execState

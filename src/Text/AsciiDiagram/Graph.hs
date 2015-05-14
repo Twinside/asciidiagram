@@ -17,9 +17,9 @@ module Text.AsciiDiagram.Graph
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( Monoid( .. ), mempty )
+import Control.Applicative( (<$>) )
 #endif
 
-import Control.Applicative( (<$>) )
 import Control.Monad( forM_, when )
 import Control.Monad.State.Strict( execState )
 import Control.Monad.State.Class( MonadState )
