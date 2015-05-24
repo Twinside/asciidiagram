@@ -32,6 +32,7 @@ import Control.Lens( Lens'
                    , (&)
                    , (.~)
                    , (?~)
+                   , (?=)
                    , (%=)
                    , (.=)
                    , itraverse_
@@ -303,11 +304,13 @@ extractCycle rootNode = do
           filament <- extractFilamentFromMiddle starting rootNode
           addFilament filament
         else do
+          visited . at v ?= ()
           nextVertice <-
               findCounterClockwiseMost (Just prevVertice) v
           follow (v:history) v nextVertice
 
   follow [rootNode] rootNode startNode
+  visited .= mempty
   where
     extractIfAlone node = do
       (startCount, adjs) <- adjacencyInfoOfVertice node
