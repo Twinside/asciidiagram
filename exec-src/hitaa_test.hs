@@ -3,10 +3,10 @@
 {-# LANGUAGE CPP #-}
 
 #if !MIN_VERSION_base(4,8,0)
+import Control.Applicative( (<$>) )
 import Data.Monoid( mempty )
 #endif
 
-import Control.Applicative( (<$>) )
 import Control.Monad( foldM, forM )
 import Data.Monoid( (<>) )
 import Data.List( sort )
