@@ -56,6 +56,7 @@ library
   -- containers >= 0.5.2.1 for Set.elemAt
   build-depends: base >=4.6 && <4.9
                , vector >= 0.10
+               , bytestring
                , text       >= 1.2 && < 1.3
                , linear     >= 1.16
                , containers >= 0.5
@@ -75,6 +76,7 @@ Executable asciidiagram
   ghc-options: -O2 -Wall
   Hs-Source-Dirs: exec-src
   Build-Depends: base >= 4.6
+               , bytestring
                , optparse-applicative
                , rasterific-svg
                , JuicyPixels
