@@ -100,12 +100,12 @@ type Filament v = [v]
 type Cycle v = [v]
 
 data MinimalCycleFinderState v vi ei = MinimalCycleFinderState
-  { _adjacency      :: M.Map v (Int, S.Set v)
-  , _graph          :: Graph v vi ei
-  , _visited        :: S.Set v
-  , _cycleEdges     :: S.Set (v, v)
-  , _foundFilaments :: [Filament v]
-  , _foundCycles    :: [Cycle v]
+  { _adjacency      :: !(M.Map v (Int, S.Set v))
+  , _graph          :: !(Graph v vi ei)
+  , _visited        :: !(S.Set v)
+  , _cycleEdges     :: !(S.Set (v, v))
+  , _foundFilaments :: ![Filament v]
+  , _foundCycles    :: ![Cycle v]
   }
 
 emptyCycleFinderState :: (Ord v, Show v, Show vi, Show ei)
