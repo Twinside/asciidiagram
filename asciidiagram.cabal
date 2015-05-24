@@ -110,7 +110,7 @@ Test-Suite test
                  , asciidiagram
                  , text
                  , containers
-                 , groom
+                 --, groom
                  , svg-tree
                  , blaze-html
                  , directory
