@@ -17,9 +17,9 @@ module Text.AsciiDiagram.Reconstructor( reconstruct ) where
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
+import Control.Applicative( (<$>) )
 #endif
 
-import Control.Applicative( (<$>) )
 import Control.Monad( when )
 import Control.Monad.State.Strict( execState )
 import Control.Monad.State.Class( get )

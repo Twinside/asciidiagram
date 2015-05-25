@@ -17,9 +17,9 @@ module Text.AsciiDiagram.Graph
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( Monoid( .. ), mempty )
+import Control.Applicative( (<$>) )
 #endif
 
-import Control.Applicative( (<$>) )
 import Control.Monad( forM_, when )
 import Control.Monad.State.Strict( execState )
 import Control.Monad.State.Class( MonadState )
@@ -32,6 +32,7 @@ import Control.Lens( Lens'
                    , (&)
                    , (.~)
                    , (?~)
+                   , (?=)
                    , (%=)
                    , (.=)
                    , itraverse_
@@ -48,7 +49,6 @@ data Graph vertex vinfo edgeInfo = Graph
   { _vertices :: M.Map vertex vinfo
   , _edges    :: M.Map (vertex, vertex) edgeInfo
   }
-  deriving (Eq, Ord, Show)
 
 vertices :: Lens' (Graph vertex vinfo edgeInfo) (M.Map vertex vinfo)
 vertices = lens _vertices setVertices where
@@ -99,15 +99,15 @@ type Filament v = [v]
 type Cycle v = [v]
 
 data MinimalCycleFinderState v vi ei = MinimalCycleFinderState
-  { _adjacency      :: M.Map v (Int, S.Set v)
-  , _graph          :: Graph v vi ei
-  , _visited        :: S.Set v
-  , _cycleEdges     :: S.Set (v, v)
-  , _foundFilaments :: [Filament v]
-  , _foundCycles    :: [Cycle v]
+  { _adjacency      :: !(M.Map v (Int, S.Set v))
+  , _graph          :: !(Graph v vi ei)
+  , _visited        :: !(S.Set v)
+  , _cycleEdges     :: !(S.Set (v, v))
+  , _foundFilaments :: ![Filament v]
+  , _foundCycles    :: ![Cycle v]
   }
 
-emptyCycleFinderState :: (Ord v, Show v, Show vi, Show ei)
+emptyCycleFinderState :: (Ord v)
                       => Graph v vi ei -> MinimalCycleFinderState v vi ei 
 emptyCycleFinderState g = MinimalCycleFinderState
   { _adjacency = adjacencyMapOfGraph g
@@ -158,8 +158,7 @@ isInCycle :: (Ord v, MonadState (MinimalCycleFinderState v vi ei) m)
           => v -> v -> m Bool
 isInCycle a b = use $ cycleEdges . contains (linkOf a b)
 
-removeEdge :: ( MonadState (MinimalCycleFinderState v vi ei) m
-              , Ord v, Show v )
+removeEdge :: ( MonadState (MinimalCycleFinderState v vi ei) m, Ord v )
            => v -> v -> m ()
 removeEdge a b = do
   let remEdge p (n, s) = (n - 1, S.delete p s)
@@ -168,9 +167,7 @@ removeEdge a b = do
   graph . edges . at (linkOf a b) .= Nothing
 
 
-removeVertice :: ( MonadState (MinimalCycleFinderState v vi ei) m
-                 , Ord v
-                 , Show v )
+removeVertice :: ( MonadState (MinimalCycleFinderState v vi ei) m, Ord v )
               => v -> m ()
 removeVertice v = graph . vertices . at v .= Nothing
 
@@ -183,8 +180,7 @@ adjacencyInfoOfVertice v =
 
 extractFilament :: ( MonadState (MinimalCycleFinderState v vi ei) m
                    , Ord v
-                   , Functor m
-                   , Show v)
+                   , Functor m )
                 => v -> v -> m [v]
 extractFilament fromVertice toVertice = do
   mustCycle <- isInCycle fromVertice toVertice
@@ -258,8 +254,7 @@ setElemAtOne = extract . S.toList where
 extractFilamentFromMiddle
   :: ( MonadState (MinimalCycleFinderState v vi ei) m
      , Functor m
-     , Ord v
-     , Show v )
+     , Ord v )
   => v -> v -> m [v]
 extractFilamentFromMiddle = go where
   go prev curr = do
@@ -272,8 +267,7 @@ extractFilamentFromMiddle = go where
     else
       go curr $ setElemAtOne adjs
 
-addFilament :: ( MonadState (MinimalCycleFinderState v vi ei) m
-               , Show v )
+addFilament :: MonadState (MinimalCycleFinderState v vi ei) m
             => Filament v -> m ()
 addFilament [] = return ()
 addFilament filament = foundFilaments %= (filament:)
@@ -303,11 +297,13 @@ extractCycle rootNode = do
           filament <- extractFilamentFromMiddle starting rootNode
           addFilament filament
         else do
+          visited . at v ?= ()
           nextVertice <-
               findCounterClockwiseMost (Just prevVertice) v
           follow (v:history) v nextVertice
 
   follow [rootNode] rootNode startNode
+  visited .= mempty
   where
     extractIfAlone node = do
       (startCount, adjs) <- adjacencyInfoOfVertice node
@@ -315,7 +311,7 @@ extractCycle rootNode = do
         filament <- extractFilament node $ S.findMin adjs
         addFilament filament
 
-extractAllPrimitives :: (PlanarVertice v, Show ei, Show vi)
+extractAllPrimitives :: PlanarVertice v
                      => Graph v vi ei -> ([Cycle v], [Filament v])
 extractAllPrimitives initGraph = extract $ execState go initialState where
   initialState = emptyCycleFinderState initGraph
@@ -334,3 +330,4 @@ extractAllPrimitives initGraph = extract $ execState go initialState where
           addFilament filament
         _ -> extractCycle toFollow
       go
+

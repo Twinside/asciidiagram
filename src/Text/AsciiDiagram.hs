@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -59,6 +60,7 @@ module Text.AsciiDiagram
   , parseAsciiDiagram
   , saveAsciiDiagramAsSvg
   , imageOfDiagram
+  , pdfOfDiagram
 
     -- * Document description
   , Diagram( .. ) 
@@ -72,13 +74,17 @@ module Text.AsciiDiagram
   , Point
   ) where
 
-import Data.Monoid( (<>))
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative( (<$>) )
+#endif
+
+import Data.Monoid( (<>))
 import Control.Monad( forM_ )
 import Control.Monad.ST( runST )
 import Control.Monad.State.Strict( runState, put, get )
 import Data.Function( on )
 import Data.List( partition, sortBy )
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.Foldable as F
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -95,7 +101,7 @@ import Text.AsciiDiagram.DiagramCleaner
 import Codec.Picture( Image, PixelRGBA8 )
 import Graphics.Text.TrueType( FontCache )
 import Graphics.Svg( Dpi, saveXmlFile )
-import Graphics.Rasterific.Svg( renderSvgDocument )
+import Graphics.Rasterific.Svg( renderSvgDocument, pdfOfSvgDocument )
 
 {-import Debug.Trace-}
 {-import Text.Groom-}
@@ -266,6 +272,12 @@ saveAsciiDiagramAsSvg fileName diagram =
 imageOfDiagram :: FontCache -> Dpi -> Diagram -> IO (Image PixelRGBA8)
 imageOfDiagram cache dpi = 
   fmap fst . renderSvgDocument cache Nothing dpi . svgOfDiagram
+
+-- | Render a Diagram into a PDF file. IO dependency to allow
+-- loading of the font files used in the document.
+pdfOfDiagram :: FontCache -> Dpi -> Diagram -> IO LB.ByteString
+pdfOfDiagram cache dpi =
+  fmap fst . pdfOfSvgDocument cache Nothing dpi . svgOfDiagram
 
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n

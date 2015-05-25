@@ -3,20 +3,22 @@
 {-# LANGUAGE CPP #-}
 
 #if !MIN_VERSION_base(4,8,0)
-import Control.Applicative( (<*>), pure )
+import Control.Applicative( (<$>), (<*>), pure )
 #endif
 
-import Control.Applicative( (<$>), (<|>) )
+import Control.Applicative( (<|>) )
 import Control.Monad( when )
 import Data.Monoid( (<>) )
 
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.Text.IO as STIO
-import System.FilePath( replaceExtension
+import System.Directory( getTemporaryDirectory )
+import System.FilePath( (</>)
+                      , replaceExtension
                       , takeExtension )
 
-import Graphics.Rasterific.Svg( renderSvgDocument
-                              , loadCreateFontCache )
-
+import Graphics.Rasterific.Svg( loadCreateFontCache )
+import Graphics.Text.TrueType( FontCache )
 import Codec.Picture( writePng )
 import Options.Applicative( Parser
                           , ParserInfo
@@ -35,7 +37,6 @@ import Options.Applicative( Parser
                           , switch
                           )
 import Text.AsciiDiagram
-import Graphics.Svg
 
 data Options = Options
   { _inputFile  :: !FilePath
@@ -44,7 +45,7 @@ data Options = Options
   , _format     :: !(Maybe Format)
   }
 
-data Format = FormatSvg | FormatPng
+data Format = FormatSvg | FormatPng | FormatPdf
 
 argParser :: Parser Options
 argParser = Options
@@ -63,6 +64,9 @@ argParser = Options
      <|> flag Nothing (Just FormatPng)
             ( long "png"
             <> help "Force the use of the PNG format (deduced from extension otherwise) (by default)")
+     <|> flag Nothing (Just FormatPdf)
+            ( long "pdf"
+            <> help  "Force the use of the PDF format (deduced from extension otherwise)")
       )
 
 progOptions :: ParserInfo Options
@@ -75,33 +79,46 @@ formatOfOuputFilename :: FilePath -> Format
 formatOfOuputFilename f = case takeExtension f of
     ".png" -> FormatPng
     ".svg" -> FormatSvg
+    ".pdf" -> FormatPdf
     _ -> FormatPng
+
+getFontCache :: Bool -> IO FontCache
+getFontCache verbose = do
+  when verbose $ putStrLn "Loading/Building font cache (can be long)"
+  tempDir <- getTemporaryDirectory 
+  loadCreateFontCache $ tempDir </> "asciidiagram-fonty-fontcache"
 
 runConversion :: Options -> IO ()
 runConversion opt = do
   verbose . putStrLn $ "Loading file " ++ _inputFile opt
   inputData <- STIO.readFile $ _inputFile opt
-  let svgDoc = svgOfDiagram $ parseAsciiDiagram inputData
-  case (_format opt, formatOfOuputFilename $ _outputFile opt) of
-    (Nothing, FormatSvg) -> saveDoc svgDoc
-    (Just FormatSvg, _) -> saveDoc svgDoc
-    (Nothing, FormatPng) -> savePng svgDoc
-    (Just FormatPng, _) -> savePng svgDoc
+  let diag = parseAsciiDiagram inputData
+      format = _format opt <|> (pure . formatOfOuputFilename $ _outputFile opt)
+  case format of
+    Nothing -> saveDoc diag
+    Just FormatSvg -> saveDoc diag
+    Just FormatPng -> savePng diag
+    Just FormatPdf -> savePdf diag
   where
     verbose = when $ _verbose opt
-    saveDoc doc = do
+    saveDoc diag = do
       verbose . putStrLn $ "Writing SVG file " ++ _outputFile opt
-      saveXmlFile (savingPath "svg") doc
+      saveAsciiDiagramAsSvg (savingPath "svg") diag
 
     savingPath ext = case _outputFile opt of
       "" -> replaceExtension (_inputFile opt) ext
       p -> p
 
-    savePng doc = do
-      verbose . putStrLn $ "Loading/Building font cache (can be long)"
-      cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
+    savePdf diag = do
+      cache <- getFontCache  $ _verbose opt
+      verbose . putStrLn $ "Writing PDF file " ++ _outputFile opt
+      pdf <- pdfOfDiagram cache 96 diag
+      LB.writeFile (savingPath "pdf") pdf
+
+    savePng diag = do
+      cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PNG file " ++ _outputFile opt
-      (img, _) <- renderSvgDocument cache Nothing 96 doc
+      img <- imageOfDiagram cache 96 diag
       writePng (savingPath "png") img
 
 main :: IO ()

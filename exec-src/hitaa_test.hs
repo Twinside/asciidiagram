@@ -3,10 +3,10 @@
 {-# LANGUAGE CPP #-}
 
 #if !MIN_VERSION_base(4,8,0)
+import Control.Applicative( (<$>) )
 import Data.Monoid( mempty )
 #endif
 
-import Control.Applicative( (<$>) )
 import Control.Monad( foldM, forM )
 import Data.Monoid( (<>) )
 import Data.List( sort )
@@ -25,7 +25,7 @@ import Graphics.Rasterific.Svg( renderSvgDocument
 
 import Codec.Picture( writePng )
 import Text.AsciiDiagram
-import Text.Groom
+{-import Text.Groom-}
 import Graphics.Svg
 
 testOutputFolder :: FilePath
@@ -45,7 +45,7 @@ toSvg lst = do
           pngname = name ++ ".png"
           svgDoc = svgOfDiagram diagram
       putStrLn name
-      putStrLn $ groom diagram
+      putStrLn $ show diagram
 
       saveXmlFile (testOutputFolder </> fileName) svgDoc
       (img, _) <- renderSvgDocument cache Nothing 96 svgDoc
