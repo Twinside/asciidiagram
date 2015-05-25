@@ -12,11 +12,13 @@ import Data.Monoid( (<>) )
 
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Text.IO as STIO
-import System.FilePath( replaceExtension
+import System.Directory( getTemporaryDirectory )
+import System.FilePath( (</>)
+                      , replaceExtension
                       , takeExtension )
 
 import Graphics.Rasterific.Svg( loadCreateFontCache )
-
+import Graphics.Text.TrueType( FontCache )
 import Codec.Picture( writePng )
 import Options.Applicative( Parser
                           , ParserInfo
@@ -80,6 +82,12 @@ formatOfOuputFilename f = case takeExtension f of
     ".pdf" -> FormatPdf
     _ -> FormatPng
 
+getFontCache :: Bool -> IO FontCache
+getFontCache verbose = do
+  when verbose $ putStrLn "Loading/Building font cache (can be long)"
+  tempDir <- getTemporaryDirectory 
+  loadCreateFontCache $ tempDir </> "asciidiagram-fonty-fontcache"
+
 runConversion :: Options -> IO ()
 runConversion opt = do
   verbose . putStrLn $ "Loading file " ++ _inputFile opt
@@ -102,15 +110,13 @@ runConversion opt = do
       p -> p
 
     savePdf diag = do
-      verbose . putStrLn $ "Loading/Building font cache (can be long)"
-      cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
+      cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PDF file " ++ _outputFile opt
       pdf <- pdfOfDiagram cache 96 diag
       LB.writeFile (savingPath "pdf") pdf
 
     savePng diag = do
-      verbose . putStrLn $ "Loading/Building font cache (can be long)"
-      cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
+      cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PNG file " ++ _outputFile opt
       img <- imageOfDiagram cache 96 diag
       writePng (savingPath "png") img

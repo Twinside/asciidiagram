@@ -1,8 +1,21 @@
--*-change-log-*-
+Change log
+==========
 
-v1.1
+v1.1.1 May 2015
+---------------
+
+ * Fix: Removing some bad reconstructed shapes in presence of lines.
+ * Fix: Bumping rasterific-svg dependency.
+ * Fix: creating font cache in a temporary directory.
+ * Adding: PDF output.
+
+v1.1 April 2015
+---------------
+
  * Bump: svg-tree & rasterific-svg dependencies
 
-v0.1
+v1.0 February 2015
+------------------
+
  * Initial version
 
