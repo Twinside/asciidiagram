@@ -1,6 +1,11 @@
 Change log
 ==========
 
+v1.1.1.1 May 2015
+-----------------
+
+ * Fix: Bumping lens dependency
+
 v1.1.1 May 2015
 ---------------
 
