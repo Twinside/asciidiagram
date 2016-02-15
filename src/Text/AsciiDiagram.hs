@@ -62,6 +62,15 @@ module Text.AsciiDiagram
   , imageOfDiagram
   , pdfOfDiagram
 
+   -- * Customized rendering
+  , svgOfDiagramAtSize 
+  , GridSize( .. )
+  , defaultGridSize
+  , saveAsciiDiagramAsSvgAtSize
+  , imageOfDiagramAtSize
+  , pdfOfDiagramAtSize
+
+
     -- * Document description
   , Diagram( .. ) 
   , TextZone( .. )
@@ -100,7 +109,7 @@ import Text.AsciiDiagram.DiagramCleaner
 
 import Codec.Picture( Image, PixelRGBA8 )
 import Graphics.Text.TrueType( FontCache )
-import Graphics.Svg( Dpi, saveXmlFile )
+import Graphics.Svg( saveXmlFile )
 import Graphics.Rasterific.Svg( renderSvgDocument, pdfOfSvgDocument )
 
 {-import Debug.Trace-}
@@ -266,18 +275,37 @@ saveAsciiDiagramAsSvg :: FilePath -> Diagram -> IO ()
 saveAsciiDiagramAsSvg fileName diagram =
   saveXmlFile fileName $ svgOfDiagram diagram
 
--- | Render a Diagram as an image. a good value for the Dpi
+-- | Helper function helping you save a diagram as
+-- a SVG file on disk with a customized grid size.
+saveAsciiDiagramAsSvgAtSize :: FilePath -> GridSize -> Diagram -> IO ()
+saveAsciiDiagramAsSvgAtSize fileName gridSize =
+  saveXmlFile fileName . svgOfDiagramAtSize gridSize
+
+-- | Render a Diagram as an image. The Dpi
 -- is 96. The IO dependency is there to allow loading of the
 -- font files used in the document.
-imageOfDiagram :: FontCache -> Dpi -> Diagram -> IO (Image PixelRGBA8)
-imageOfDiagram cache dpi = 
-  fmap fst . renderSvgDocument cache Nothing dpi . svgOfDiagram
+imageOfDiagram :: FontCache -> Diagram -> IO (Image PixelRGBA8)
+imageOfDiagram cache = 
+  fmap fst . renderSvgDocument cache Nothing 96 . svgOfDiagram
+
+-- | Render a Diagram as an image with a custom grid size. The Dpi
+-- is 96. The IO dependency is there to allow loading of the
+-- font files used in the document.
+imageOfDiagramAtSize :: FontCache -> GridSize -> Diagram -> IO (Image PixelRGBA8)
+imageOfDiagramAtSize cache gridSize =
+  fmap fst . renderSvgDocument cache Nothing 96 . svgOfDiagramAtSize gridSize
 
 -- | Render a Diagram into a PDF file. IO dependency to allow
 -- loading of the font files used in the document.
-pdfOfDiagram :: FontCache -> Dpi -> Diagram -> IO LB.ByteString
-pdfOfDiagram cache dpi =
-  fmap fst . pdfOfSvgDocument cache Nothing dpi . svgOfDiagram
+pdfOfDiagram :: FontCache -> Diagram -> IO LB.ByteString
+pdfOfDiagram cache =
+  fmap fst . pdfOfSvgDocument cache Nothing 96 . svgOfDiagram
+
+-- | Render a Diagram into a PDF file with a custom grid size.
+-- IO dependency to allow loading of the font files used in the document.
+pdfOfDiagramAtSize :: FontCache -> GridSize -> Diagram -> IO LB.ByteString
+pdfOfDiagramAtSize cache size =
+  fmap fst . pdfOfSvgDocument cache Nothing 96 . svgOfDiagramAtSize size
 
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n
