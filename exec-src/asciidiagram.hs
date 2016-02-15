@@ -112,13 +112,13 @@ runConversion opt = do
     savePdf diag = do
       cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PDF file " ++ _outputFile opt
-      pdf <- pdfOfDiagram cache 96 diag
+      pdf <- pdfOfDiagram cache diag
       LB.writeFile (savingPath "pdf") pdf
 
     savePng diag = do
       cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PNG file " ++ _outputFile opt
-      img <- imageOfDiagram cache 96 diag
+      img <- imageOfDiagram cache diag
       writePng (savingPath "png") img
 
 main :: IO ()

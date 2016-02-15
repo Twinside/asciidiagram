@@ -1,6 +1,10 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Text.AsciiDiagram.SvgRender( svgOfDiagram ) where
+module Text.AsciiDiagram.SvgRender( GridSize( .. )
+                                  , defaultGridSize
+                                  , svgOfDiagram
+                                  , svgOfDiagramAtSize
+                                  ) where
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
@@ -38,13 +42,24 @@ import Text.AsciiDiagram.DiagramCleaner
 {-import Debug.Trace-}
 {-import Text.Groom-}
 
+-- | Simple type describing the grid size used during render.
 data GridSize = GridSize
-  { _gridCellWidth        :: !Float
-  , _gridCellHeight       :: !Float
+  { _gridCellWidth        :: !Float -- ^ Width of a cell (in pixel)
+  , _gridCellHeight       :: !Float -- ^ Height of a cell (in pixel)
+
+    -- | Coefficient used to space adjacent shapes, set to 0
+    -- if you want to remove space between them.
   , _gridShapeContraction :: !Float
   }
   deriving (Eq, Show)
 
+-- | Default grid size used in the simple render functions
+defaultGridSize :: GridSize
+defaultGridSize = GridSize
+  { _gridCellWidth = 10
+  , _gridCellHeight = 14
+  , _gridShapeContraction = 1.5
+  }
 
 toSvg :: GridSize -> Point -> Svg.RPoint
 toSvg s (V2 x y) =
@@ -457,7 +472,13 @@ lightShapeGradient = Svg.ElementLinearGradient $
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image.
 svgOfDiagram :: Diagram -> Svg.Document
-svgOfDiagram diagram = Document
+svgOfDiagram = svgOfDiagramAtSize defaultGridSize where
+
+-- | Transform an Ascii diagram to a SVG document which
+-- can be saved or converted to an image, with a customizable
+-- grid size.
+svgOfDiagramAtSize :: GridSize -> Diagram -> Svg.Document
+svgOfDiagramAtSize scale diagram = Document
   { _viewBox = Nothing
   , _width =
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
@@ -493,9 +514,4 @@ svgOfDiagram diagram = Document
     textSvg = textToTree scale <$> _diagramTexts diagram
 
     strokeScale = scale { _gridShapeContraction = 0 }
-    scale = GridSize
-      { _gridCellWidth = 10
-      , _gridCellHeight = 14
-      , _gridShapeContraction = 1.5
-      }
 
