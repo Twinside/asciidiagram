@@ -1,6 +1,12 @@
 Change log
 ==========
 
+v1.2 February 2016
+------------------
+ * Breaking change: DPI parameter on the rendering functions
+ * Fix: exposing grid size
+ * Fix: Bumped dependencies
+
 v1.1.1.1 May 2015
 -----------------
 
