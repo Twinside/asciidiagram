@@ -1,4 +1,5 @@
 dist
+.cabal-sandbox
 test_output
 cabal.sandbox.config
 out.txt

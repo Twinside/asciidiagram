@@ -209,9 +209,11 @@ styleDoc =
   ,P ("The generated geometry also possess some predefined class\n" <>
       "which are overidable:\n" <>
       "\n" <>
-      " * \"dashed_elem\" is applyied on every dashed element.\n" <>
+      " * \"dashed_elem\" is applied on every dashed element.\n" <>
       "\n" <>
-      " * \"filled_shape\" is applyied on every closed shape.\n" <>
+      " * \"filled_shape\" is applied on every closed shape.\n" <>
+      "\n" <>
+      " * \"arrow_head\" is applied on arrow head.\n" <>
       "\n" <>
       " * \"bullet\" on every bullet placed on a shape or line.\n" <>
       "\n" <>

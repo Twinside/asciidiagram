@@ -89,13 +89,7 @@ applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
 
 applyLineArrowDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyLineArrowDrawAttr = execState . zoom drawAttr $ do
-    fillColor .= toLC 0 0 0 255
-    strokeColor .= toL Svg.FillNone
-    strokeWidth .= toL (Svg.Num 0)
-  where
-    toL = Last . Just
-    toLC r g b a =
-        toL . ColorRef $ PixelRGBA8 r g b a
+    attrClass %= ("arrow_head":)
 
 applyBulletDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyBulletDrawAttr = execState . zoom drawAttr $ do
@@ -454,7 +448,8 @@ defaultCss textSize = T.pack $ printf
    "text { font-family: Consolas, \"DejaVu Sans Mono\", monospace; font-size: %dpx }\n" <>
    ".dashed_elem { stroke-dasharray: 4, 3 }\n" <>
    ".filled_shape { fill: url(#shape_light) }\n" <>
-   ".bullet { stroke-width: 1px; fill: white; stroke: black }\n"
+   ".bullet { stroke-width: 1px; fill: white; stroke: black }\n" <>
+   ".arrow_head { fill: black; stroke: none; }\n"
   )
   (2 + floor textSize :: Int)
 
