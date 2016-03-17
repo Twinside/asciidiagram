@@ -4,6 +4,7 @@ module Text.AsciiDiagram.Geometry( Point
                                  , Vector
                                  , Anchor( .. )
                                  , Shape( .. )
+                                 , Element( .. )
                                  , Segment( .. )
                                  , SegmentDraw( .. )
                                  , SegmentKind( .. )
@@ -30,9 +31,7 @@ type Vector = V2 Int
 -- document
 data Diagram = Diagram
   { -- | All the extracted tshapes
-    _diagramShapes     :: S.Set Shape
-    -- | All the extracted text zones
-  , _diagramTexts      :: [TextZone]
+    _diagramElements   :: S.Set Element
     -- | Width in characters of the document
   , _diagramCellWidth  :: !Int
     -- | Height in characters of the document
@@ -47,7 +46,7 @@ data TextZone = TextZone
   { _textZoneOrigin  :: Point
   , _textZoneContent :: T.Text
   }
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 -- | Define the different connection points
 -- between the segments.
@@ -114,12 +113,20 @@ data ShapeElement
 -- | Shape extracted from the text
 data Shape = Shape
   { -- | Elements composing the shape.
-    shapeElements :: [ShapeElement]
+    shapeElements :: ![ShapeElement]
     -- | When False it's just lines possibly with
     -- an arrow, when True it's a polygon.
-  , shapeIsClosed :: Bool
+  , shapeIsClosed :: !Bool
     -- | Tags "{tagname}" placed inside the shape.
-  , shapeTags     :: S.Set T.Text
+  , shapeTags        :: !(S.Set T.Text)
+
+  , shapeChildren    :: ![Element]
   }
   deriving (Eq, Ord, Show)
+
+-- | Define an element to be drawn.
+data Element
+  = ElemText  !TextZone
+  | ElemShape !Shape
+  deriving (Eq, Show, Ord)
 

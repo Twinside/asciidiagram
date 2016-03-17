@@ -469,6 +469,33 @@ lightShapeGradient = Svg.ElementLinearGradient $
 svgOfDiagram :: Diagram -> Svg.Document
 svgOfDiagram = svgOfDiagramAtSize defaultGridSize where
 
+svgOfShape :: GridSize -> Shape -> Svg.Tree
+svgOfShape scale shape
+  | shapeIsClosed shape =
+      applyDefaultShapeDrawAttr $ shapeToTree scale shape
+  | otherwise =
+      applyDefaultLineDrawAttr $ shapeToTree strokeScale shape
+  where
+    strokeScale = scale { _gridShapeContraction = 0 }
+
+
+svgOfElement :: GridSize -> Element -> Svg.Tree
+svgOfElement scale (ElemText txt) = textToTree scale txt
+svgOfElement scale (ElemShape shape) = 
+  case shapeChildren shape of
+    [] -> svgOfShape scale shape
+    _:_ -> Svg.GroupTree $ group
+  where
+    thisShape = svgOfShape scale shape
+    group = Svg.Group
+      { Svg._groupDrawAttributes =
+          mempty { Svg._attrClass = S.toList $ shapeTags shape }
+      , Svg._groupChildren =
+          thisShape : fmap (svgOfElement scale) (shapeChildren shape)
+      , Svg._groupViewBox = Nothing
+      }
+
+
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image, with a customizable
 -- grid size.
@@ -479,7 +506,7 @@ svgOfDiagramAtSize scale diagram = Document
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
-  , _elements = closedSvg ++ lineSvg ++ textSvg
+  , _elements = svgOfElement scale <$> shapes
   , _definitions = M.fromList
         [("shape_light", lightShapeGradient)]
   , _description = ""
@@ -487,26 +514,17 @@ svgOfDiagramAtSize scale diagram = Document
   , _documentLocation = ""
   }
   where
-    (closed, opened) = S.partition shapeIsClosed shapes
-
     defaultCssRules =
       cssRulesOfText . defaultCss $ _gridCellHeight scale
 
     customCssRules = 
       cssRulesOfText . T.unlines $ _diagramStyles diagram
 
-    shapes = _diagramShapes diagram
-
-    closedSvg =
-        applyDefaultShapeDrawAttr . shapeToTree scale <$> filter isShapePossible
-                                                            (S.toList closed)
-    lineSvg =
-        applyDefaultLineDrawAttr . shapeToTree strokeScale <$> S.toList opened
+    isDrawable (ElemText _) = True
+    isDrawable (ElemShape shape) =
+      not (shapeIsClosed shape) || isShapePossible shape
+    shapes = filter isDrawable . S.toList $ _diagramElements diagram
 
     toSvgSize accessor var =
         Just . Svg.Num . realToFrac $ fromIntegral var * accessor scale + 5
-
-    textSvg = textToTree scale <$> _diagramTexts diagram
-
-    strokeScale = scale { _gridShapeContraction = 0 }
 

@@ -260,7 +260,7 @@ reconstruct anchors segments =
             . fmap (`M.lookup` _vertices graph)
 
     toFilaments shapes =
-      [Shape piece False mempty | piece <- breakFilaments $ toElems shapes] 
+      [Shape piece False mempty mempty | piece <- breakFilaments $ toElems shapes] 
 
-    toShapes shapes = Shape (toElems shapes) True mempty
+    toShapes shapes = Shape (toElems shapes) True mempty mempty
 
