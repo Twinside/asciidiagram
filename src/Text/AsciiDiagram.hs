@@ -90,13 +90,7 @@ import Control.Applicative( (<$>) )
 import Data.Monoid( (<>))
 import Control.Monad( forM_ )
 import Control.Monad.ST( runST )
-import Control.Monad.State.Strict( runState, put, get )
 import Data.Function( on )
-import Control.Lens( Lens'
-                   , ASetter'
-                   , lens
-                   , (&), (.~)
-                   )
 import Data.List( partition, sortBy )
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Foldable as F
@@ -117,7 +111,7 @@ import Graphics.Text.TrueType( FontCache )
 import Graphics.Svg( saveXmlFile )
 import Graphics.Rasterific.Svg( renderSvgDocument, pdfOfSvgDocument )
 
-{-import Debug.Trace-}
+import Debug.Trace
 {-import Text.Groom-}
 {-import Text.Printf-}
 
@@ -203,8 +197,8 @@ pointComp (V2 x1 y1) (V2 x2 y2) = case compare y1 y2 of
   EQ -> compare x1 x2
   a -> a
 
-rangesOfShapes :: Shape -> [(Point, Point)]
-rangesOfShapes shape = pairAssoc sortedPoints
+rangesOfShape :: Shape -> [(Point, Point)]
+rangesOfShape shape = pairAssoc sortedPoints
   where
    pairAssoc  [] = []
    pairAssoc [_] = []
@@ -215,75 +209,93 @@ rangesOfShapes shape = pairAssoc sortedPoints
    sortedPoints = sortBy pointComp
                 $ pointsOfShape WithoutHorizontalSegments [shape]
 
-shapeTextChildren :: Lens' Shape [TextZone]
-shapeTextChildren = lens getter setter where
-  getter s = [t | ElemText t <- shapeChildren s]
-  setter s o = s { shapeChildren = oldShapes <> fmap ElemText o} where
-    oldShapes = filter notText $ shapeChildren s
+class RangeDecomposable a where
+  rangesOf :: a -> [(Point, Point)]
+
+instance RangeDecomposable Shape where
+  rangesOf = rangesOfShape
+
+instance RangeDecomposable TextZone where
+  rangesOf txt = [(orig, V2 x (y + txtLength))] where
+    orig@(V2 x y) = _textZoneOrigin txt
+    txtLength = T.length $ _textZoneContent txt
+
+
+contains :: (RangeDecomposable a, RangeDecomposable b) => a -> b -> Bool
+contains sa sb = go (rangesOf sa) (rangesOf sb) where
+  go []     []    = False
+  go []     (_:_) = False
+  go (_:_)  []    = True
+  go ((V2 _ ya, _):rest1) rest2@((V2 _ yb, _):_)
+    -- A part of second shape is before potentially englobing shpae
+    -- so sa can't contain sb
+    | ya > yb = False   
+    -- sa may be bigger, just skip
+    | ya < yb = go rest1 rest2
+  -- here ya == yb
+  go ((V2 xa1 _, V2 xa2 _):rest1)
+     sar@((V2 xb1 _, V2 xb2 _):rest2)
+    -- sb is before any range of sa, so we must have
+    -- missed something, sa not containing sb
+    | xb1 < xa1 = False
+    -- sb is in the range bounds
+    | xa1 <= xb1 && xb2 <= xa2 = go rest1 rest2
+    -- Maybe sa has another range on the same line
+    | xb1 > xa2 = go rest1 sar
+    | otherwise = False
   
-  notText e = case e of
-    ElemText _ -> False
-    ElemShape _ -> True
-
-shapeTagsLens :: Lens' Shape [TextZone]
-shapeTagsLens = lens getter setter where
-  insertAlls shape =
-    foldr S.insert (shapeTags shape) . fmap _textZoneContent
-
-  getter s = [TextZone 0 t | t <- S.toList $ shapeTags s]
-  setter s o = s { shapeTags = insertAlls s o }
-
-associateTextZone :: (ASetter' Shape [TextZone]) -> [Shape] -> [TextZone]
-                  -> ([Shape], [TextZone])
-associateTextZone textLens shapes tagZones = runState (mapM go shapes) sortedZones where
-  sortedZones =
-    sortBy (pointComp `on` _textZoneOrigin) tagZones
-
-  isInRange (V2 px py) (V2 x1 y1, V2 x2 y2) =
-    py == y1 && py == y2 && x1 < px && px < x2
-
-  go shape | not $ shapeIsClosed shape = return shape
-  go shape = do
-    zones <- get
-
-    let ranges = rangesOfShapes shape
-        isInShape TextZone { _textZoneOrigin = orig } =
-          any (isInRange orig) ranges
-        (inRanges, other) = partition isInShape zones
-
-    put other
-    return $ shape & textLens .~ inRanges
-
-associateTags :: [Shape] -> [TextZone] -> ([Shape], [TextZone])
-associateTags shapes = expandTag . associateTextZone shapeTagsLens shapes
+areaOfShape :: Shape -> Int
+areaOfShape = F.sum . fmap dist . rangesOfShape
   where
-    expandTag (s, zones) = (s, fmap expander zones)
-    expander t = t { _textZoneContent = "{" <> _textZoneContent t <> "}" }
+    -- we can use manathan distance here
+    dist (V2 x1 y1, V2 x2 y2) = abs (x1 - x2) + abs (y1 - y2)
 
+sortByArea :: [Shape] -> [Shape]
+sortByArea shapes =
+  fmap snd $ sortBy (invCompare `on` fst) [(areaOfShape s, s) | s <- shapes]
+  where
+    invCompare a b = inv $ compare a b
+    
+    inv EQ = EQ
+    inv LT = GT
+    inv GT = LT
 
-associateText :: [Shape] -> [TextZone] -> ([Shape], [TextZone])
-associateText = associateTextZone shapeTextChildren
+hierarchise :: [Shape] -> [TextZone] -> [TextZone] -> [Element]
+hierarchise shapes allTexts = finalize . go areaSortedShapes allTexts where
+  areaSortedShapes = sortByArea shapes
+
+  finalize (topShapes, topText, _topTags) =
+    (ElemShape <$> topShapes) <> (ElemText <$> topText)
+
+  go [] texts tags = ([], texts, tags)
+  go (x:xs) texts tags = (newShape : restShapes, restText, restTags)
+    where
+      (shapeInShape, shapeOutShape) = partition (x `contains`) xs
+      (textInShape, textOutShape) = partition (x `contains`) texts
+      (tagsInShape, tagsOutShape) = partition (x `contains`) tags
+
+      (innerShapes, innerText, innerTags) = go shapeInShape textInShape tagsInShape
+      (restShapes, restText, restTags) = go shapeOutShape textOutShape tagsOutShape
+
+      newShape = x
+        { shapeChildren =
+            (ElemShape <$> innerShapes) <> (ElemText <$> innerText)
+        , shapeTags = S.fromList $ _textZoneContent <$> innerTags
+        }
 
 -- | Analyze an ascii diagram and extract all it's features.
 parseAsciiDiagram :: T.Text -> Diagram
 parseAsciiDiagram content = Diagram
-    { _diagramElements = S.fromList $ shapeContent <> textContent
+    { _diagramElements = S.fromList allElements
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines - length styleLines
     , _diagramStyles = styleLines
     }
   where
     textLines = T.lines content
+    allElements = hierarchise (S.toList validShapes) zones tags
 
-    textContent = ElemText <$> unassociatedText <> unassociatedTag
-    shapeContent = ElemShape <$> fullShapes
-
-    (fullShapes, unassociatedText) = associateText taggedShape zones
-    (taggedShape, unassociatedTag) = associateTags (S.toList validShapes) tags
-
-    (tags, zones) = detectTagFromTextZone
-                  $ extractTextZones shapeCleanedText 
-
+    (tags, zones) = detectTagFromTextZone $ extractTextZones shapeCleanedText 
     (styleLineNumber, styleLines) = unzip $ styleLine parsed
 
     shapeCleanedText =
