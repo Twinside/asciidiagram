@@ -111,7 +111,7 @@ import Graphics.Text.TrueType( FontCache )
 import Graphics.Svg( saveXmlFile )
 import Graphics.Rasterific.Svg( renderSvgDocument, pdfOfSvgDocument )
 
-import Debug.Trace
+{-import Debug.Trace-}
 {-import Text.Groom-}
 {-import Text.Printf-}
 
