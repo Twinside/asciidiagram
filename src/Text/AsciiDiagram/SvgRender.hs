@@ -23,6 +23,7 @@ import Graphics.Svg( cssRulesOfText )
 
 import Codec.Picture( PixelRGBA8( PixelRGBA8 ) )
 import qualified Graphics.Svg.Types as Svg
+import qualified Graphics.Svg.CssTypes as Css
 import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.Text as T
@@ -34,10 +35,11 @@ import Linear( V2( .. )
              , perp
              , normalize
              )
-import Control.Lens( zoom, (.=), (%=), (%~), (&) )
+import Control.Lens( zoom, (^.), (.=), (%=), (%~), (&) )
 
 import Text.AsciiDiagram.Geometry
 import Text.AsciiDiagram.DiagramCleaner
+import Text.AsciiDiagram.BoundingBoxEstimation
 
 {-import Debug.Trace-}
 {-import Text.Groom-}
@@ -79,32 +81,23 @@ isShapeDashed = any isDashed . shapeElements where
 
 applyDefaultShapeDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
-    strokeColor .= toLC 0 0 0 255
-    attrClass %= ("filled_shape":) 
-    strokeWidth .= toL (Svg.Num 1)
-  where
-    toL = Last . Just
-    toLC r g b a =
-        toL . ColorRef $ PixelRGBA8 r g b a
+  attrClass %= ("filled_shape":) 
 
 applyLineArrowDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyLineArrowDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= ("arrow_head":)
+  attrClass %= ("arrow_head":)
 
 applyBulletDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyBulletDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= ("bullet":)
+  attrClass %= ("bullet":)
+
+cleanupUseAttributes ::  (Svg.WithDrawAttributes a) => a -> a
+cleanupUseAttributes = execState . zoom drawAttr $ do
+  attrClass .= []
 
 applyDefaultLineDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
 applyDefaultLineDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= ("line_element":)
-    fillColor .= toL Svg.FillNone
-    strokeColor .= toLC 0 0 0 255
-    strokeWidth .= toL (Svg.Num 1)
-  where
-    toL = Last . Just
-    toLC r g b a =
-        toL . ColorRef $ PixelRGBA8 r g b a
+  attrClass %= ("line_element":)
 
 
 startPointOf :: ShapeElement -> Point
@@ -447,7 +440,8 @@ defaultCss textSize = T.pack $ printf
   ("\n" <>
    "text { font-family: Consolas, \"DejaVu Sans Mono\", monospace; font-size: %dpx }\n" <>
    ".dashed_elem { stroke-dasharray: 4, 3 }\n" <>
-   ".filled_shape { fill: url(#shape_light) }\n" <>
+   ".filled_shape { fill: url(#shape_light); stroke: black; stroke-width: 1px; }\n" <>
+   ".line_element { fill: none; stroke: black; stroke-width: 1px; }\n" <>
    ".bullet { stroke-width: 1px; fill: white; stroke: black }\n" <>
    ".arrow_head { fill: black; stroke: none; }\n"
   )
@@ -495,6 +489,68 @@ svgOfElement scale (ElemShape shape) =
       , Svg._groupViewBox = Nothing
       }
 
+shapeRewriter :: [Css.CssRule] -> Svg.Tree -> Svg.Tree
+shapeRewriter rules = Svg.zipTree go where
+  go [] = Svg.None
+  go ([]:_) = Svg.None
+  go context@((t:_):_) = case reverse shapeDeclarations of
+      [] -> t
+      (([Css.CssIdent i]:_): _) -> Svg.UseTree (useInfo i) Nothing
+      _ -> t
+   where
+     useInfo name = cleanupUseAttributes $ Svg.Use
+        { Svg._useDrawAttributes = t ^. Svg.drawAttr
+        , Svg._useBase = (Css.Num x, Css.Num y)
+        , Svg._useName = T.unpack name
+        , Svg._useWidth = Just (Css.Num w)
+        , Svg._useHeight = Just (Css.Num h)
+        }
+
+     BoundingBox pMin@(V2 x y) pMax = boundingBoxOf t
+     V2 w h = pMax ^-^ pMin
+
+     shapeDeclarations = 
+        [el | Css.CssDeclaration "shape" el <- Css.findMatchingDeclarations rules context]
+
+defaultCircle :: Svg.Element
+defaultCircle = Svg.ElementGeometry $ Svg.SymbolTree tree where
+  tree = Svg.Symbol $ execState build Svg.defaultSvg
+
+  build = do
+    let circle = applyDefaultShapeDrawAttr $ Svg.defaultSvg
+            { Svg._circleCenter = (Css.Num 25, Css.Num 25)
+            , Svg._circleRadius = Css.Num 24.5
+            }
+    Svg.groupChildren .= [Svg.CircleTree circle]
+    Svg.groupViewBox .= Just (0, 0, 50, 50)
+
+defaultEllipse :: Svg.Element
+defaultEllipse = Svg.ElementGeometry $ Svg.SymbolTree tree where
+  tree = Svg.Symbol $ execState build Svg.defaultSvg
+
+  build = do
+    let circle = applyDefaultShapeDrawAttr $ Svg.defaultSvg
+            { Svg._ellipseCenter = (Css.Num 25, Css.Num 25)
+            , Svg._ellipseXRadius = Css.Num 24.5
+            , Svg._ellipseYRadius = Css.Num 24.5
+            }
+    Svg.groupChildren .= [Svg.EllipseTree circle]
+    Svg.groupViewBox .= Just (0, 0, 50, 50)
+
+defaultDocument :: Svg.Element
+defaultDocument = Svg.ElementGeometry $ Svg.SymbolTree tree where
+  tree = Svg.Symbol $ execState build Svg.defaultSvg
+
+  build = do
+    let path = applyDefaultShapeDrawAttr $ Svg.defaultSvg
+            { Svg._pathDefinition =
+                [ Svg.MoveTo Svg.OriginRelative [V2 49.98 0.79, V2 (-49.166) 0, V2 0 45.402]
+                , Svg.CurveTo Svg.OriginRelative [(V2 15.92 12.45, V2 30.40 (-13.44), V2 49.17 0)]
+                , Svg.EndPath
+                ]
+            }
+    Svg.groupChildren .= [Svg.PathTree path]
+    Svg.groupViewBox .= Just (0, 0, 51, 51)
 
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image, with a customizable
@@ -506,9 +562,14 @@ svgOfDiagramAtSize scale diagram = Document
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
-  , _elements = svgOfElement scale <$> shapes
+  , _elements =
+      shapeRewriter customCssRules . svgOfElement scale <$> shapes
   , _definitions = M.fromList
-        [("shape_light", lightShapeGradient)]
+        [ ("shape_light", lightShapeGradient)
+        , ("circle", defaultCircle)
+        , ("ellipse", defaultEllipse)
+        , ("document", defaultDocument)
+        ]
   , _description = ""
   , _styleRules = defaultCssRules ++ customCssRules
   , _documentLocation = ""

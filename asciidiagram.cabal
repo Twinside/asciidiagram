@@ -51,6 +51,7 @@ library
                , Text.AsciiDiagram.Graph
                , Text.AsciiDiagram.Parser
                , Text.AsciiDiagram.Reconstructor
+               , Text.AsciiDiagram.BoundingBoxEstimation
                , Text.AsciiDiagram.SvgRender
 
   -- containers >= 0.5.2.1 for Set.elemAt
