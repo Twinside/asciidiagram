@@ -293,8 +293,9 @@ parseAsciiDiagram content = Diagram
     }
   where
     textLines = T.lines content
-    allElements = hierarchise (S.toList validShapes) zones tags
+    allElements = hierarchise (S.toList validShapes) nonEmptyZones tags
 
+    nonEmptyZones = [t | t <- zones, not . T.null $ _textZoneContent t]
     (tags, zones) = detectTagFromTextZone $ extractTextZones shapeCleanedText 
     (styleLineNumber, styleLines) = unzip $ styleLine parsed
 
