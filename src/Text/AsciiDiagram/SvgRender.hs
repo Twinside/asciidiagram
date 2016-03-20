@@ -12,11 +12,10 @@ import Control.Applicative( (<$>) )
 #endif
 
 import Control.Monad.State.Strict( execState )
-import Data.Monoid( Last( .. ), (<>) )
+import Data.Monoid( (<>) )
 
 import Graphics.Svg.Types
                    ( HasDrawAttributes( .. )
-                   , Texture( ColorRef )
                    , Document( .. )
                    , drawAttr )
 import Graphics.Svg( cssRulesOfText )
