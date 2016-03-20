@@ -289,7 +289,7 @@ parseAsciiDiagram content = Diagram
     { _diagramElements = S.fromList allElements
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines - length styleLines
-    , _diagramStyles = styleLines
+    , _diagramStyles = reverse styleLines
     }
   where
     textLines = T.lines content
