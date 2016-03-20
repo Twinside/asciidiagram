@@ -4,13 +4,9 @@ import Data.Monoid( (<>) )
 import Linear( V2( .. )
              , (^+^)
              , (^-^)
-             , (^*)
-             , perp
-             , normalize
              )
 
 import Graphics.Svg.Types
-import Graphics.Svg.CssTypes
 
 data BoundingBox = BoundingBox
   { _boundingLow    :: !RPoint
@@ -60,7 +56,7 @@ pointOfPath c = case c of
  LineTo _ l -> l
  HorizontalTo _ _ -> mempty
  VerticalTo   _ _ -> mempty
- CurveTo _ l -> mconcat [[a, b, c] | (a, b, c) <- l]
+ CurveTo _ l -> mconcat [[a, b, cc] | (a, b, cc) <- l]
  SmoothCurveTo _ l -> mconcat [[a, b] | (a, b) <- l]
  QuadraticBezier _ l -> mconcat [[a, b] | (a, b) <- l]
  SmoothQuadraticBezierCurveTo _ l -> l
@@ -71,7 +67,7 @@ instance WithBoundingBox Path where
   boundingBoxOf (Path _ p) = foldMap (foldMap toB . pointOfPath) p
 
 instance WithBoundingBox a => WithBoundingBox (Group a) where
-  boundingBoxOf (Group _ child _) = foldMap boundingBoxOf child
+  boundingBoxOf (Group _ child _ _) = foldMap boundingBoxOf child
 
 instance WithBoundingBox a => WithBoundingBox (Symbol a) where
   boundingBoxOf (Symbol g) = boundingBoxOf g

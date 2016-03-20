@@ -63,7 +63,7 @@ library
                , containers >= 0.5
                , mtl        >= 2.1 && < 2.3
                , lens       >= 4.6 && < 5.0
-               , svg-tree       >= 0.4.1 && < 0.5
+               , svg-tree       >= 0.5 && < 0.6
                , rasterific-svg >= 0.3 && < 0.4
                , FontyFruity    >= 0.5 && < 0.6
                , JuicyPixels    >= 3.2

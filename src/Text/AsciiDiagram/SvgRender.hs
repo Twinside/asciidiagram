@@ -481,7 +481,7 @@ svgOfElement scale (ElemShape shape) =
     _:_ -> Svg.GroupTree $ group
   where
     thisShape = svgOfShape scale shape
-    group = Svg.Group
+    group = Svg.defaultSvg
       { Svg._groupDrawAttributes =
           mempty { Svg._attrClass = S.toList $ shapeTags shape }
       , Svg._groupChildren =
@@ -523,19 +523,7 @@ defaultCircle = Svg.ElementGeometry $ Svg.SymbolTree tree where
             }
     Svg.groupChildren .= [Svg.CircleTree circle]
     Svg.groupViewBox .= Just (0, 0, 50, 50)
-
-defaultEllipse :: Svg.Element
-defaultEllipse = Svg.ElementGeometry $ Svg.SymbolTree tree where
-  tree = Svg.Symbol $ execState build Svg.defaultSvg
-
-  build = do
-    let circle = applyDefaultShapeDrawAttr $ Svg.defaultSvg
-            { Svg._ellipseCenter = (Css.Num 25, Css.Num 25)
-            , Svg._ellipseXRadius = Css.Num 24.5
-            , Svg._ellipseYRadius = Css.Num 24.5
-            }
-    Svg.groupChildren .= [Svg.EllipseTree circle]
-    Svg.groupViewBox .= Just (0, 0, 50, 50)
+    Svg.groupAspectRatio . Svg.aspectRatioAlign .= Svg.AlignNone
 
 defaultDocument :: Svg.Element
 defaultDocument = Svg.ElementGeometry $ Svg.SymbolTree tree where
@@ -551,6 +539,7 @@ defaultDocument = Svg.ElementGeometry $ Svg.SymbolTree tree where
             }
     Svg.groupChildren .= [Svg.PathTree path]
     Svg.groupViewBox .= Just (0, 0, 51, 51)
+    Svg.groupAspectRatio . Svg.aspectRatioAlign .= Svg.AlignNone
 
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image, with a customizable
@@ -567,7 +556,6 @@ svgOfDiagramAtSize scale diagram = Document
   , _definitions = M.fromList
         [ ("shape_light", lightShapeGradient)
         , ("circle", defaultCircle)
-        , ("ellipse", defaultEllipse)
         , ("document", defaultDocument)
         ]
   , _description = ""
