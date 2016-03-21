@@ -1,4 +1,15 @@
+{-# LANGUAGE CPP #-}
 module Text.AsciiDiagram.BoundingBoxEstimation where
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative( (<$>), (<*>)
+                          , pure
+                          )
+import Data.Foldable( foldMap )
+import Data.Monoid( Monoid( mappend, mempty )
+                  , mconcat
+                  )
+#endif
 
 import Data.Monoid( (<>) )
 import Linear( V2( .. )
