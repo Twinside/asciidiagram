@@ -153,26 +153,16 @@ charBoardOfText textLines = CharBoard
 
       VU.unsafeFreeze emptyBoard
 
-data HorizontalPoints
-  = WithHorizontalSegments
-  | WithoutHorizontalSegments
-  deriving Eq
 
-allowsHorizontal :: HorizontalPoints -> Bool
-allowsHorizontal WithHorizontalSegments = True
-allowsHorizontal WithoutHorizontalSegments = False
-
-pointsOfShape :: F.Foldable f => HorizontalPoints -> f Shape -> [Point]
-pointsOfShape horizInfo = F.concatMap (F.concatMap go . shapeElements) where
-  withHorizontal = allowsHorizontal horizInfo
-
+pointsOfShape :: F.Foldable f => f Shape -> [Point]
+pointsOfShape = F.concatMap (F.concatMap go . shapeElements) where
   go (ShapeAnchor p _) = [p]
   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey })
     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]]
     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]]
-    | withHorizontal && sy == ey && sx >= ex =
+    | sy == ey && sx >= ex =
         [V2 xx sy | xx <- [ex .. sx]]
-    | withHorizontal && sy == ey =
+    | sy == ey =
         [V2 xx sy | xx <- [sx .. ex]]
     | otherwise            = []
 
@@ -188,8 +178,8 @@ cleanLines idxs board = board { _boardData = _boardData board VU.// toSet }
 
 cleanupShapes :: (F.Foldable f) => f Shape -> CharBoard -> CharBoard
 cleanupShapes shapes board = board { _boardData = _boardData board VU.// toSet }
-  where toSet = [(x + y * _boardWidth board, ' ')
-                    | V2 x y <- pointsOfShape WithHorizontalSegments shapes]
+  where
+    toSet = [(x + y * _boardWidth board, ' ') | V2 x y <- pointsOfShape shapes]
 
 
 pointComp :: Point -> Point -> Ordering
@@ -206,8 +196,25 @@ rangesOfShape shape = pairAssoc sortedPoints
       | y1 == y2 = (p1, p2) : pairAssoc rest
       | otherwise = pairAssoc lst
 
-   sortedPoints = sortBy pointComp
-                $ pointsOfShape WithoutHorizontalSegments [shape]
+   sortedPoints = sortBy pointComp allPoints
+
+   allPoints = F.fold . go $ shapeElements shape
+
+   go [] = []
+   -- If we got something like +----+ we skip the first anchor and
+   -- the segment.
+   go ( ShapeAnchor (V2 ax1 ay1) _
+      : ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey }
+      : rest@(ShapeAnchor (V2 ax2 ay2) _ : _)
+      )
+       | ay1 == ay2 && sy == ey && ay1 == sy && 
+         ax1 + 1 == sx && ex + 1 == ax2 = go rest
+   go (ShapeAnchor p _: rest) = [p] : go rest
+   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey } : rest)
+     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]] : after
+     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]] : after
+     | otherwise            = after
+       where after = go rest
 
 class RangeDecomposable a where
   rangesOf :: a -> [(Point, Point)]
@@ -216,16 +223,15 @@ instance RangeDecomposable Shape where
   rangesOf = rangesOfShape
 
 instance RangeDecomposable TextZone where
-  rangesOf txt = [(orig, V2 x (y + txtLength))] where
+  rangesOf txt = [(orig, V2 (x + txtLength) y)] where
     orig@(V2 x y) = _textZoneOrigin txt
     txtLength = T.length $ _textZoneContent txt
 
 
 contains :: (RangeDecomposable a, RangeDecomposable b) => a -> b -> Bool
 contains sa sb = go (rangesOf sa) (rangesOf sb) where
-  go []     []    = False
+  go _      []    = True
   go []     (_:_) = False
-  go (_:_)  []    = True
   go ((V2 _ ya, _):rest1) rest2@((V2 _ yb, _):_)
     -- A part of second shape is before potentially englobing shpae
     -- so sa can't contain sb
@@ -252,13 +258,7 @@ areaOfShape = F.sum . fmap dist . rangesOfShape
 
 sortByArea :: [Shape] -> [Shape]
 sortByArea shapes =
-  fmap snd $ sortBy (invCompare `on` fst) [(areaOfShape s, s) | s <- shapes]
-  where
-    invCompare a b = inv $ compare a b
-    
-    inv EQ = EQ
-    inv LT = GT
-    inv GT = LT
+  fmap snd . reverse $ sortBy (compare `on` fst) [(areaOfShape s, s) | s <- shapes]
 
 hierarchise :: [Shape] -> [TextZone] -> [TextZone] -> [Element]
 hierarchise shapes allTexts = finalize . go areaSortedShapes allTexts where
