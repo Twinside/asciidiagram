@@ -47,6 +47,7 @@ library
   exposed-modules: Text.AsciiDiagram
 
   other-modules: Text.AsciiDiagram.DiagramCleaner
+               , Text.AsciiDiagram.DefaultContext
                , Text.AsciiDiagram.Geometry
                , Text.AsciiDiagram.Graph
                , Text.AsciiDiagram.Parser
