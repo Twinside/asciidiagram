@@ -160,10 +160,8 @@ pointsOfShape = F.concatMap (F.concatMap go . shapeElements) where
   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey })
     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]]
     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]]
-    | sy == ey && sx >= ex =
-        [V2 xx sy | xx <- [ex .. sx]]
-    | sy == ey =
-        [V2 xx sy | xx <- [sx .. ex]]
+    | sy == ey && sx >= ex = [V2 xx sy | xx <- [ex .. sx]]
+    | sy == ey = [V2 xx sy | xx <- [sx .. ex]]
     | otherwise            = []
 
 cleanLines :: [Int] -> CharBoard -> CharBoard
@@ -187,8 +185,29 @@ pointComp (V2 x1 y1) (V2 x2 y2) = case compare y1 y2 of
   EQ -> compare x1 x2
   a -> a
 
-rangesOfShape :: Shape -> [(Point, Point)]
-rangesOfShape shape = pairAssoc sortedPoints
+featuresOfClosedShape :: Shape -> [Point]
+featuresOfClosedShape = F.fold . go . shapeElements where
+   go [] = []
+   -- If we got something like +----+ we skip the first anchor and
+   -- the segment.
+   go ( ShapeAnchor (V2 _ ay1) _
+      : ShapeSegment Segment { _segStart = V2 _ sy, _segEnd = V2 _ ey }
+      : rest@(ShapeAnchor (V2 _ ay2) _ : _)
+      )
+       | ay1 == ay2 && sy == ey && ay1 == sy = go rest
+   go (ShapeAnchor p _: rest) = [p] : go rest
+   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey } : rest)
+     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]] : after
+     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]] : after
+     | otherwise           = after
+       where after = go rest
+
+rangesOfOpenedShape :: Shape -> [(Point, Point)]
+rangesOfOpenedShape s = fmap dup . sortBy pointComp $ pointsOfShape [s]
+  where dup a = (a, a)
+
+rangesOfClosedShape :: Shape -> [(Point, Point)]
+rangesOfClosedShape shape = pairAssoc sortedPoints
   where
    pairAssoc  [] = []
    pairAssoc [_] = []
@@ -196,31 +215,16 @@ rangesOfShape shape = pairAssoc sortedPoints
       | y1 == y2 = (p1, p2) : pairAssoc rest
       | otherwise = pairAssoc lst
 
-   sortedPoints = sortBy pointComp allPoints
+   sortedPoints = sortBy pointComp $ featuresOfClosedShape shape
 
-   allPoints = F.fold . go $ shapeElements shape
-
-   go [] = []
-   -- If we got something like +----+ we skip the first anchor and
-   -- the segment.
-   go ( ShapeAnchor (V2 ax1 ay1) _
-      : ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey }
-      : rest@(ShapeAnchor (V2 ax2 ay2) _ : _)
-      )
-       | ay1 == ay2 && sy == ey && ay1 == sy && 
-         ax1 + 1 == sx && ex + 1 == ax2 = go rest
-   go (ShapeAnchor p _: rest) = [p] : go rest
-   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey } : rest)
-     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]] : after
-     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]] : after
-     | otherwise            = after
-       where after = go rest
 
 class RangeDecomposable a where
   rangesOf :: a -> [(Point, Point)]
 
 instance RangeDecomposable Shape where
-  rangesOf = rangesOfShape
+  rangesOf s
+     | shapeIsClosed s = rangesOfClosedShape s
+     | otherwise = rangesOfOpenedShape s
 
 instance RangeDecomposable TextZone where
   rangesOf txt = [(orig, V2 (x + txtLength) y)] where
@@ -239,26 +243,29 @@ contains sa sb = go (rangesOf sa) (rangesOf sb) where
     -- sa may be bigger, just skip
     | ya < yb = go rest1 rest2
   -- here ya == yb
-  go ((V2 xa1 _, V2 xa2 _):rest1)
+  go sal@((V2 xa1 _, V2 xa2 _):rest1)
      sar@((V2 xb1 _, V2 xb2 _):rest2)
     -- sb is before any range of sa, so we must have
     -- missed something, sa not containing sb
     | xb1 < xa1 = False
     -- sb is in the range bounds
-    | xa1 <= xb1 && xb2 <= xa2 = go rest1 rest2
+    | xa1 <= xb1 && xb2 <= xa2 = go sal rest2
     -- Maybe sa has another range on the same line
     | xb1 > xa2 = go rest1 sar
     | otherwise = False
   
 areaOfShape :: Shape -> Int
-areaOfShape = F.sum . fmap dist . rangesOfShape
+areaOfShape = F.sum . fmap dist . rangesOfClosedShape
   where
     -- we can use manathan distance here
     dist (V2 x1 y1, V2 x2 y2) = abs (x1 - x2) + abs (y1 - y2)
 
 sortByArea :: [Shape] -> [Shape]
-sortByArea shapes =
-  fmap snd . reverse $ sortBy (compare `on` fst) [(areaOfShape s, s) | s <- shapes]
+sortByArea shapes = sorted <> opened
+  where
+    (closed, opened) = partition shapeIsClosed shapes
+    sorted =
+        fmap snd . reverse $ sortBy (compare `on` fst) [(areaOfShape s, s) | s <- closed]
 
 hierarchise :: [Shape] -> [TextZone] -> [TextZone] -> [Element]
 hierarchise shapes allTexts = finalize . go areaSortedShapes allTexts where
@@ -268,6 +275,9 @@ hierarchise shapes allTexts = finalize . go areaSortedShapes allTexts where
     (ElemShape <$> topShapes) <> (ElemText <$> topText)
 
   go [] texts tags = ([], texts, tags)
+  go (x:xs) texts tags | not (shapeIsClosed x) = (x:outShapes, outTexts, outTags)
+    where
+      (outShapes, outTexts, outTags) = go xs texts tags
   go (x:xs) texts tags = (newShape : restShapes, restText, restTags)
     where
       (shapeInShape, shapeOutShape) = partition (x `contains`) xs
