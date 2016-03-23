@@ -331,7 +331,7 @@ saveAsciiDiagramAsSvg fileName diagram =
 -- a SVG file on disk with a customized grid size.
 saveAsciiDiagramAsSvgAtSize :: FilePath -> GridSize -> Diagram -> IO ()
 saveAsciiDiagramAsSvgAtSize fileName gridSize =
-  saveXmlFile fileName . svgOfDiagramAtSize gridSize
+  saveXmlFile fileName . svgOfDiagramAtSize gridSize (defaultLibrary gridSize)
 
 -- | Render a Diagram as an image. The Dpi
 -- is 96. The IO dependency is there to allow loading of the
@@ -345,7 +345,8 @@ imageOfDiagram cache =
 -- font files used in the document.
 imageOfDiagramAtSize :: FontCache -> GridSize -> Diagram -> IO (Image PixelRGBA8)
 imageOfDiagramAtSize cache gridSize =
-  fmap fst . renderSvgDocument cache Nothing 96 . svgOfDiagramAtSize gridSize
+  fmap fst . renderSvgDocument cache Nothing 96
+           . svgOfDiagramAtSize gridSize (defaultLibrary gridSize)
 
 -- | Render a Diagram into a PDF file. IO dependency to allow
 -- loading of the font files used in the document.
@@ -357,7 +358,8 @@ pdfOfDiagram cache =
 -- IO dependency to allow loading of the font files used in the document.
 pdfOfDiagramAtSize :: FontCache -> GridSize -> Diagram -> IO LB.ByteString
 pdfOfDiagramAtSize cache size =
-  fmap fst . pdfOfSvgDocument cache Nothing 96 . svgOfDiagramAtSize size
+  fmap fst . pdfOfSvgDocument cache Nothing 96
+           . svgOfDiagramAtSize size (defaultLibrary size)
 
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n

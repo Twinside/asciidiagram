@@ -83,21 +83,16 @@ instance WithBoundingBox a => WithBoundingBox (Group a) where
 instance WithBoundingBox a => WithBoundingBox (Symbol a) where
   boundingBoxOf (Symbol g) = boundingBoxOf g
 
-instance WithBoundingBox Tree where
-  boundingBoxOf t = case t of
-    None            -> mempty
-    UseTree _ _     -> mempty
-    PathTree p      -> boundingBoxOf p
-    CircleTree c    -> boundingBoxOf c
-    PolyLineTree pl -> boundingBoxOf pl
-    PolygonTree po  -> boundingBoxOf po
-    EllipseTree e   -> boundingBoxOf e
-    LineTree l      -> boundingBoxOf l
-    RectangleTree r -> boundingBoxOf r
-    TextTree    _ _ -> mempty
-    ImageTree _     -> mempty
-    GroupTree g     -> boundingBoxOf g
-    SymbolTree s    -> boundingBoxOf s
+instance WithBoundingBox Text where
+  boundingBoxOf = boundingBoxOf . _textRoot
+
+instance WithBoundingBox TextSpan where
+  boundingBoxOf = boundingBoxOf . _spanInfo
+
+instance WithBoundingBox TextInfo where
+  boundingBoxOf t = case (_textInfoX t, _textInfoY t) of
+    (x1:_, y1:_) -> toB (toEstimatedPoint (x1, y1))
+    _ -> mempty
 
 instance WithBoundingBox Circle where
   boundingBoxOf (Circle _ center rad) = BoundingBox (c ^-^ r) (c ^+^ r)
@@ -110,4 +105,20 @@ instance WithBoundingBox Ellipse where
     where
      c = toEstimatedPoint center
      r = V2 (toEstimatedLength xrad) (toEstimatedLength yrad)
+
+instance WithBoundingBox Tree where
+  boundingBoxOf t = case t of
+    None            -> mempty
+    UseTree _ _     -> mempty
+    PathTree p      -> boundingBoxOf p
+    CircleTree c    -> boundingBoxOf c
+    PolyLineTree pl -> boundingBoxOf pl
+    PolygonTree po  -> boundingBoxOf po
+    EllipseTree e   -> boundingBoxOf e
+    LineTree l      -> boundingBoxOf l
+    RectangleTree r -> boundingBoxOf r
+    TextTree  _ txt -> boundingBoxOf txt
+    ImageTree _     -> mempty
+    GroupTree g     -> boundingBoxOf g
+    SymbolTree s    -> boundingBoxOf s
 

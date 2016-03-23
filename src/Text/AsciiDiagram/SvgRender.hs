@@ -13,6 +13,7 @@ import Data.Monoid( mempty )
 import Control.Applicative( (<$>) )
 #endif
 
+import Data.Monoid( (<>) )
 import Control.Monad.State.Strict( execState )
 
 import Graphics.Svg.Types
@@ -437,7 +438,8 @@ textToTree gscale zone = Svg.TextTree Nothing txt
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image.
 svgOfDiagram :: Diagram -> Svg.Document
-svgOfDiagram = svgOfDiagramAtSize defaultGridSize where
+svgOfDiagram =
+    svgOfDiagramAtSize defaultGridSize (defaultLibrary defaultGridSize)
 
 svgOfShape :: GridSize -> Shape -> Svg.Tree
 svgOfShape scale shape
@@ -491,21 +493,22 @@ shapeRewriter rules = Svg.zipTree go where
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image, with a customizable
 -- grid size.
-svgOfDiagramAtSize :: GridSize -> Diagram -> Svg.Document
-svgOfDiagramAtSize scale diagram = Document
+svgOfDiagramAtSize :: GridSize -> Svg.Document -> Diagram -> Svg.Document
+svgOfDiagramAtSize scale style diagram = Document
   { _viewBox = Nothing
   , _width =
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
   , _elements =
-      shapeRewriter customCssRules . svgOfElement scale <$> shapes
-  , _definitions = defaultDefinitions
+      shapeRewriter allRules . svgOfElement scale <$> shapes
+  , _definitions = _definitions style
   , _description = ""
-  , _styleRules = defaultCssRules (_gridCellHeight scale) ++ customCssRules
+  , _styleRules = allRules
   , _documentLocation = ""
   }
   where
+    allRules = _styleRules style <> customCssRules
     customCssRules = 
       cssRulesOfText . T.unlines $ _diagramStyles diagram
 
@@ -517,15 +520,15 @@ svgOfDiagramAtSize scale diagram = Document
     toSvgSize accessor var =
         Just . Svg.Num . realToFrac $ fromIntegral var * accessor scale + 5
 
-defaultLibrary :: Svg.Document
-defaultLibrary = Document
+defaultLibrary :: GridSize -> Svg.Document
+defaultLibrary size = Document
   { _viewBox = Nothing
   , _width = Nothing
   , _height = Nothing
   , _elements =  []
   , _definitions = defaultDefinitions
   , _description = ""
-  , _styleRules = defaultCssRules $ _gridCellHeight defaultGridSize
+  , _styleRules = defaultCssRules $ _gridCellHeight size
   , _documentLocation = ""
   }
 

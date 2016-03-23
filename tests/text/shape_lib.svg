@@ -1,0 +1,38 @@
+<?xml version='1.0' ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1">
+    <style type="text/css">
+text {
+  font-family: Consolas , &quot;DejaVu Sans Mono&quot; , monospace; font-size: 16.0px;
+}
+.dashed_elem { stroke-dasharray: 4.0 , 3.0; }
+.filled_shape { fill: url(#shape_light); stroke: #000000; stroke-width: 1.0px; }
+.line_element { fill: none; stroke: #000000; stroke-width: 1.0px; }
+.bullet { stroke-width: 1.0px; fill: #FFFFFF; stroke: #000000; }
+.arrow_head { fill: #000000; stroke: none; }
+.circle .filled_shape { shape: circle; }
+.document .filled_shape { shape: document; }
+.storage .filled_shape { shape: storage; }
+.io .filled_shape { shape: io; }
+</style>
+  <defs>
+    <symbol id="circle" viewBox="0.0 0.0 50.0 50.0" preserveAspectRatio="none">
+      <circle class="filled_shape" cx="25.0" cy="25.0" r="24.5" />
+    </symbol>
+    <symbol id="document" viewBox="0.0 0.0 51.0 51.0" preserveAspectRatio="none">
+      <path class="filled_shape" d="m49.98,0.79 -49.166,0.0 0.0,45.402 c15.92,12.45 30.4,-13.44 49.17,0.0 Z" />
+    </symbol>
+    <symbol id="storage" viewBox="0 0 80 80" preserveAspectRatio="none">
+        <path class="filled_shape"
+              d="m4.8122 67.74v-53.769c0-3.2991 16.067-5.9743 35.845-5.9743 19.78 0 35.848 2.6752 35.848 5.9743v53.769c0 3.2925-16.068 5.9743-35.848 5.9743-19.779 0-35.845-2.6818-35.845-5.9743z"/>
+        <path class="filled_shape"
+              d="m4.8122 13.97 0.04779 0.30672 0.13807 0.30272 0.22834 0.29872 0.31464 0.29344 0.40094 0.28944 0.48325 0.2828 0.56423 0.27744 0.64256 0.2708 0.71823 0.26416 0.79258 0.25752 0.86294 0.25096 0.9333 0.2416 0.99968 0.23496 1.0647 0.22568 1.1271 0.2164 1.1869 0.2084 1.2453 0.19784 1.301 0.1872 1.3555 0.17792 1.4046 0.16728 1.455 0.15536 1.5002 0.14336 1.5466 0.1328 1.5865 0.11952 1.6276 0.10752 1.6648 0.0942 1.7007 0.081 1.7338 0.0664 1.7644 0.0531 1.7923 0.0372 1.8188 0.0239 1.8427 0.008c19.78 0 35.848-2.6818 35.848-5.9743"/>
+    </symbol>
+    <symbol id="io" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path class="filled_shape" d="m19.207 1.6h79.414l-17.192 97.297h-79.414z" />
+    </symbol>
+    <linearGradient id="shape_light" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5F5F5" />
+      <stop offset="100%" stop-color="#D8D8D8" />
+    </linearGradient>
+  </defs>
+</svg>

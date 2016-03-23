@@ -9,7 +9,7 @@ import Data.Monoid( mempty )
 
 import Control.Monad( foldM, forM )
 import Data.Monoid( (<>) )
-import Data.List( sort )
+import Data.List( isSuffixOf, sort )
 import qualified Data.Text as T
 import qualified Data.Text.IO as STIO
 import qualified Data.Text.Lazy.IO as TIO
@@ -31,7 +31,22 @@ import Graphics.Svg
 testOutputFolder :: FilePath
 testOutputFolder = "test_output"
 
-toSvg :: [(String, T.Text)] -> IO ()
+loadLibrary :: Maybe FilePath -> IO Document
+loadLibrary filePath = case filePath of
+   Nothing -> return defaultLib
+   Just p -> loadLib p
+  where
+    defaultLib = defaultLibrary defaultGridSize
+    loadLib p = do                      
+      putStrLn $ "Loading shape lib " ++ p
+      f <- loadSvgFile p
+      case f of
+        Just doc -> return doc
+        Nothing -> do
+          putStrLn "Invalid library file, using default lib"
+          return defaultLib 
+
+toSvg :: [(String, T.Text, Maybe FilePath)] -> IO ()
 toSvg lst = do
     createDirectoryIfMissing True testOutputFolder
     cache <- loadCreateFontCache "asciidiagram-fonty-fontcache"
@@ -39,13 +54,14 @@ toSvg lst = do
     let html = renderHtml . H.html $ H.body hDoc
     TIO.writeFile (testOutputFolder </> "test.html") html
   where
-    go (acc, cache) (name, content) = do
+    go (acc, cache) (name, content, lib) = do
+      shapeLib <- loadLibrary lib                      
       let diagram = parseAsciiDiagram content
           fileName = name ++ ".svg"
           pngname = name ++ ".png"
-          svgDoc = svgOfDiagram diagram
+          svgDoc = svgOfDiagramAtSize defaultGridSize shapeLib diagram
       putStrLn name
-      putStrLn $ show diagram
+      {-putStrLn $ show diagram-}
 
       saveXmlFile (testOutputFolder </> fileName) svgDoc
       (img, _) <- renderSvgDocument cache Nothing 96 svgDoc
@@ -56,13 +72,21 @@ toSvg lst = do
                        <> H.td (H.img H.! H.src (H.toValue pngname)))
             <> H.pre (H.toHtml (name ++ "\n") <> H.toHtml content)
 
-loadTests :: IO [(String, T.Text)]
-loadTests = do
+loadTests :: IO [(String, T.Text, Maybe FilePath)]
+loadTests = do                                   
   let folder = "tests" </> "text"
-  content <- -- return ["art3.txt"]
-     sort . filter (`notElem` [".", "", ".."]) <$> getDirectoryContents folder
-  forM content $ \f ->
-     (f,) <$> STIO.readFile (folder </> f)
+  content <- -- return ["shaper.txt"]
+     sort . filter (".txt" `isSuffixOf`)
+          . filter (`notElem` [".", "", ".."]) <$> getDirectoryContents folder
+  forM content $ \f -> do
+    fileContent <- STIO.readFile (folder </> f)
+    let contentLines = T.lines fileContent
+        libMarker = "|LIB_TO_LOAD="
+    case contentLines of
+      [] -> return (f, fileContent, Nothing)
+      (x:xs) | libMarker `T.isPrefixOf` x ->
+         return (f, T.unlines xs, (folder </>) . T.unpack <$> T.stripPrefix libMarker x)
+      _ -> return (f, fileContent, Nothing)
 
 main :: IO ()
 main = do

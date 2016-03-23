@@ -17,7 +17,7 @@ import System.FilePath( (</>)
                       , replaceExtension
                       , takeExtension )
 
-import Graphics.Svg( saveXmlFile )
+import Graphics.Svg( Document, loadSvgFile, saveXmlFile )
 import Graphics.Rasterific.Svg( loadCreateFontCache )
 import Graphics.Text.TrueType( FontCache )
 import Codec.Picture( writePng )
@@ -40,6 +40,8 @@ import Options.Applicative( Parser
                           , strOption
                           , switch
                           )
+import Graphics.Rasterific.Svg( renderSvgDocument
+                              , pdfOfSvgDocument )
 import Text.AsciiDiagram
 
 data Mode
@@ -114,42 +116,59 @@ getFontCache verbose = do
   tempDir <- getTemporaryDirectory 
   loadCreateFontCache $ tempDir </> "asciidiagram-fonty-fontcache"
 
+
+loadLibrary :: Options -> IO Document
+loadLibrary opt = case _withLibrary opt of
+   Nothing -> return defaultLib
+   Just p -> loadLib p
+  where
+    defaultLib = defaultLibrary defaultGridSize
+    loadLib p = do
+      f <- loadSvgFile p
+      case f of
+        Just doc -> return doc
+        Nothing -> do
+          putStrLn "Invalid library file, using default lib"
+          return defaultLib 
+
 runConversion :: Options -> FilePath -> FilePath -> IO ()
 runConversion opt inputFile outputFile = do
   verbose . putStrLn $ "Loading file " ++ inputFile
   inputData <- STIO.readFile inputFile
+  lib <- loadLibrary opt
   let diag = parseAsciiDiagram inputData
+      svg = svgOfDiagramAtSize defaultGridSize lib diag
       format = _format opt <|> (pure $ formatOfOuputFilename outputFile)
   case format of
-    Nothing -> saveDoc diag
-    Just FormatSvg -> saveDoc diag
-    Just FormatPng -> savePng diag
-    Just FormatPdf -> savePdf diag
+    Nothing -> saveDoc svg
+    Just FormatSvg -> saveDoc svg
+    Just FormatPng -> savePng svg
+    Just FormatPdf -> savePdf svg
   where
     verbose = when $ _verbose opt
-    saveDoc diag = do
+    saveDoc svg = do
       verbose . putStrLn $ "Writing SVG file " ++ outputFile
-      saveAsciiDiagramAsSvg (savingPath "svg") diag
+      saveXmlFile (savingPath "svg") svg
 
     savingPath ext = case outputFile of
       "" -> replaceExtension inputFile ext
       p -> p
 
-    savePdf diag = do
+    savePdf svg = do
       cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PDF file " ++ outputFile
-      pdf <- pdfOfDiagram cache diag
+      (pdf, _) <- pdfOfSvgDocument cache Nothing 96 svg
       LB.writeFile (savingPath "pdf") pdf
 
-    savePng diag = do
+    savePng svg = do
       cache <- getFontCache  $ _verbose opt
       verbose . putStrLn $ "Writing PNG file " ++ outputFile
-      img <- imageOfDiagram cache diag
+      (img, _) <- renderSvgDocument cache Nothing 96 svg
       writePng (savingPath "png") img
 
 dumpLibrary :: FilePath -> IO ()
 dumpLibrary path =
-  saveXmlFile path defaultLibrary
+  saveXmlFile path $ defaultLibrary defaultGridSize
 
 main :: IO ()
 main = execParser progOptions >>= \opts ->
