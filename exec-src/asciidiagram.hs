@@ -17,6 +17,7 @@ import System.FilePath( (</>)
                       , replaceExtension
                       , takeExtension )
 
+import Graphics.Svg( saveXmlFile )
 import Graphics.Rasterific.Svg( loadCreateFontCache )
 import Graphics.Text.TrueType( FontCache )
 import Codec.Picture( writePng )
@@ -32,32 +33,57 @@ import Options.Applicative( Parser
                           , info
                           , long
                           , metavar
+                          , optional
                           , progDesc
+                          , short
                           , str
+                          , strOption
                           , switch
                           )
 import Text.AsciiDiagram
 
+data Mode
+  = Convert !(FilePath, FilePath)
+  | DumpLibrary !FilePath
+
 data Options = Options
-  { _inputFile  :: !FilePath
-  , _outputFile :: !FilePath
-  , _verbose    :: !Bool
-  , _format     :: !(Maybe Format)
+  { _workingMode :: !Mode
+  , _verbose     :: !Bool
+  , _withLibrary :: !(Maybe FilePath)
+  , _format      :: !(Maybe Format)
   }
 
 data Format = FormatSvg | FormatPng | FormatPdf
 
-argParser :: Parser Options
-argParser = Options
-  <$> ( argument str
-            (metavar "INPUTFILE"
-            <> help "Text file of the Ascii diagram to parse."))
-  <*> ( argument str
+ioParser :: Parser (String, String)
+ioParser = (,)
+    <$> argument str
+          (metavar "INPUTFILE"
+          <> help "Text file of the Ascii diagram to parse.")
+    <*> (argument str
             (metavar "OUTPUTFILE"
             <> help ("Output file name, same as input with"
                     <> " different extension if unspecified."))
-        <|> pure "" )
+        <|> pure "")
+
+modeParser :: Parser Mode
+modeParser = (Convert <$> ioParser) <|> (DumpLibrary <$> dumpParser)
+  where 
+    dumpParser = strOption 
+      ( long "dump-library"
+      <> short 'd'
+      <> metavar "FILENAME"
+      <> help "Dump the default shape library & styles in an SVG document") 
+
+argParser :: Parser Options
+argParser = Options
+  <$> modeParser
   <*> ( switch (long "verbose" <> help "Display more information") )
+  <*> ( optional $ strOption
+            ( long "with-library"
+            <> short 'l'
+            <> metavar "LIBRARY_FILENAME"
+            <> help "Use a custom shape & style library instead of the default one") )
   <*> ( flag Nothing (Just FormatSvg)
             (  long "svg"
             <> help "Force the use of the SVG format (deduced from extension otherwise)")
@@ -88,12 +114,12 @@ getFontCache verbose = do
   tempDir <- getTemporaryDirectory 
   loadCreateFontCache $ tempDir </> "asciidiagram-fonty-fontcache"
 
-runConversion :: Options -> IO ()
-runConversion opt = do
-  verbose . putStrLn $ "Loading file " ++ _inputFile opt
-  inputData <- STIO.readFile $ _inputFile opt
+runConversion :: Options -> FilePath -> FilePath -> IO ()
+runConversion opt inputFile outputFile = do
+  verbose . putStrLn $ "Loading file " ++ inputFile
+  inputData <- STIO.readFile inputFile
   let diag = parseAsciiDiagram inputData
-      format = _format opt <|> (pure . formatOfOuputFilename $ _outputFile opt)
+      format = _format opt <|> (pure $ formatOfOuputFilename outputFile)
   case format of
     Nothing -> saveDoc diag
     Just FormatSvg -> saveDoc diag
@@ -102,25 +128,32 @@ runConversion opt = do
   where
     verbose = when $ _verbose opt
     saveDoc diag = do
-      verbose . putStrLn $ "Writing SVG file " ++ _outputFile opt
+      verbose . putStrLn $ "Writing SVG file " ++ outputFile
       saveAsciiDiagramAsSvg (savingPath "svg") diag
 
-    savingPath ext = case _outputFile opt of
-      "" -> replaceExtension (_inputFile opt) ext
+    savingPath ext = case outputFile of
+      "" -> replaceExtension inputFile ext
       p -> p
 
     savePdf diag = do
       cache <- getFontCache  $ _verbose opt
-      verbose . putStrLn $ "Writing PDF file " ++ _outputFile opt
+      verbose . putStrLn $ "Writing PDF file " ++ outputFile
       pdf <- pdfOfDiagram cache diag
       LB.writeFile (savingPath "pdf") pdf
 
     savePng diag = do
       cache <- getFontCache  $ _verbose opt
-      verbose . putStrLn $ "Writing PNG file " ++ _outputFile opt
+      verbose . putStrLn $ "Writing PNG file " ++ outputFile
       img <- imageOfDiagram cache diag
       writePng (savingPath "png") img
 
+dumpLibrary :: FilePath -> IO ()
+dumpLibrary path =
+  saveXmlFile path defaultLibrary
+
 main :: IO ()
-main = execParser progOptions >>= runConversion
+main = execParser progOptions >>= \opts ->
+  case _workingMode opts of
+    Convert (i, o) -> runConversion opts i o
+    DumpLibrary p -> dumpLibrary p
 

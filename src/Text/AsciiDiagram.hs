@@ -70,6 +70,8 @@ module Text.AsciiDiagram
   , imageOfDiagramAtSize
   , pdfOfDiagramAtSize
 
+    -- * Library
+  , defaultLibrary
 
     -- * Document description
   , Diagram( .. ) 

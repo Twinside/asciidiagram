@@ -1,10 +1,12 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Text.AsciiDiagram.SvgRender( GridSize( .. )
-                                  , defaultGridSize
-                                  , svgOfDiagram
-                                  , svgOfDiagramAtSize
-                                  ) where
+module Text.AsciiDiagram.SvgRender
+    ( GridSize( .. )
+    , defaultGridSize
+    , svgOfDiagram
+    , svgOfDiagramAtSize
+    , defaultLibrary
+    ) where
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
@@ -514,4 +516,16 @@ svgOfDiagramAtSize scale diagram = Document
 
     toSvgSize accessor var =
         Just . Svg.Num . realToFrac $ fromIntegral var * accessor scale + 5
+
+defaultLibrary :: Svg.Document
+defaultLibrary = Document
+  { _viewBox = Nothing
+  , _width = Nothing
+  , _height = Nothing
+  , _elements =  []
+  , _definitions = defaultDefinitions
+  , _description = ""
+  , _styleRules = defaultCssRules $ _gridCellHeight defaultGridSize
+  , _documentLocation = ""
+  }
 
