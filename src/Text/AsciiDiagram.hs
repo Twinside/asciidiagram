@@ -15,7 +15,7 @@
 -- +---------+     |         |
 -- |{flat}   |     +--+------\/
 -- \\---*-----\/\<=======\/
--- ::: .flat { fill: #DDD; }
+-- ::: .flat .filled_shape { fill: #DDD; }
 -- @
 -- <<docimages/baseExample.svg>>
 -- 
@@ -52,8 +52,11 @@ module Text.AsciiDiagram
     -- ** Styles
     -- $styledoc
 
-    -- * Usage example
-    -- $example
+    -- ** Hierarchical styles
+    -- $hierarchicalDoc
+
+    -- ** Shapes
+    -- $shapeDoc
 
     -- * Functions
     svgOfDiagram
@@ -361,18 +364,37 @@ pdfOfDiagramAtSize cache size =
   fmap fst . pdfOfSvgDocument cache Nothing 96
            . svgOfDiagramAtSize size (defaultLibrary size)
 
+-- $introDoc
+-- Ascii diagram, transform your ASCII art drawing to a nicer
+-- representation
+-- 
+-- 
+-- @
+--                 \/---------+
+-- +---------+     |         |
+-- |  ASCII  +----\>| Diagram |
+-- +---------+     |         |
+-- |{flat}   |     +--+------\/
+-- \\---*-----\/\<=======\/
+-- ::: .flat .filled_shape { fill: #DED; }
+-- @
+-- <<docimages/baseExample.svg>>
+-- 
+
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n
 -- 
--- >-----       
--- >  -------   
--- >            
--- >|  |        
--- >|  |        
--- >|  \----    
--- >|           
--- >+-----      
---
+-- 
+-- @
+--  -----       
+--    -------   
+--              
+--  |  |        
+--  |  |        
+--  |  \\----    
+--  |           
+--  +-----      
+-- @
 -- <<docimages/simple_lines.svg>>
 -- 
 -- You can use dashed lines by using ':' for vertical lines or '=' for\nhorizontal lines.
@@ -499,13 +521,102 @@ pdfOfDiagramAtSize cache size =
 -- The generated geometry also possess some predefined class
 -- which are overidable:
 -- 
---  * `dashed_elem` is applyied on every dashed element.
+--  * "dashed_elem" is applied on every dashed element.
 -- 
---  * `filled_shape` is applyied on every closed shape.
+--  * "filled_shape" is applied on every closed shape.
 -- 
---  * `bullet` on every bullet placed on a shape or line.
+--  * "arrow_head" is applied on arrow head.
 -- 
---  * `line_element` on every line element, this include the arrow head.
+--  * "bullet" on every bullet placed on a shape or line.
+-- 
+--  * "line_element" on every line element, this include the arrow head.
 -- 
 -- You can then customize the appearance of the diagram as you want.
+-- 
+
+-- $hierarchicalDoc
+-- Starting with version 1.3, all shapes, text and lines are
+-- hierachised, a shape within a shape will be integrated within
+-- the same group. This allows more complex styling: 
+-- 
+-- 
+-- @
+--  \/------------------------------------------------------\\ .
+--  |s100                                                  |
+--  |    \/----------------------------\\                    |
+--  |    |s1         \/--------\\       |  e1    \/--------\\  |
+--  |    |      *---\>|  s2    |       +-------\>|  s10   |  |
+--  |    +----+      \\---+----\/       |        \\--------\/  |
+--  |    | i4 |          |            |           ^        |
+--  |    |{ii}+---------\\| e1  {lo}   |           |        |
+--  |    +----+         vv            | ealarm    |        |   e0      \/-------------\\ .
+--  |    |            \/--------\\      +-----------\/        +----------\>|    s50      |
+--  |    +----\\       | s3 {lu}|      |                    |           \\-------------\/
+--  |    | o5 |   e2  \\--+-----\/      |                    |
+--  |    |{oo}|\<---------\/            |\<-\\                 |
+--  |    \\-+--+--------------------+--\/  |                 |
+--  |      |                       |     | eReset          |
+--  |      |                       \\-----\/                 |
+--  |      v                                               |
+--  |  \/--------\\                                          |
+--  |  |  s20   |                  {li}                    |
+--  |  \\--------\/                                          |
+--  \\------------------------------------------------------\/
+-- 
+-- ::: .li .line_element { stroke: purple; }
+-- ::: .li .arrow_head, .li text { fill: gray; }
+-- ::: .lo .line_element { stroke: blue; }
+-- ::: .lo .arrow_head, .lo text { fill: green; }
+-- ::: .lu .line_element { stroke: red; }
+-- ::: .lu .arrow_head, .lu text { fill: orange; }
+-- ::: .ii .filled_shape { fill: #DDF; }
+-- ::: .ii text { fill: blue; }
+-- ::: .oo .filled_shape { fill: #DFD; }
+-- ::: .oo text { fill: pink; }
+-- @
+-- <<docimages/deepStyleExample.svg>>
+-- 
+-- In the previous example, we can see that the lines color are
+-- 'shape scoped' and the tag applied to the shape above them
+-- applies to them
+-- 
+
+-- $shapeDoc
+-- From version 1.3, you can substitute the shape of your element
+-- with one from a shape library. Right now the shape library is
+-- relatively small:
+-- 
+-- 
+-- @
+--  +---------+  +----------+
+--  |         |  |          |
+--  | circle  |  |          |
+--  |         |  |    io    |
+--  |{circle} |  | {io}     |
+--  +---------+  +----------+
+-- 
+--  +----------+  +----------+
+--  |document  |  |          |
+--  |          |  |          |
+--  |          |  | storage  |
+--  |{document}|  | {storage}|
+--  +----------+  +----------+
+-- 
+-- ::: .circle .filled_shape { shape: circle; }
+-- ::: .document .filled_shape { shape: document; }
+-- ::: .storage .filled_shape { shape: storage; }
+-- ::: .io .filled_shape { shape: io; }
+-- @
+-- <<docimages/shapeExample.svg>>
+-- 
+-- The mechanism use CSS styling to change the shape, if a CSS rule
+-- possess a `shape` pseudo attribute, then the generated shape is replaced
+-- with a SVG `use` tag with the value of the shape attribute as `href`
+-- 
+-- But, you can create your own style library and change the default
+-- stylesheet. You can retrieve the default one with the shell command
+-- `asciidiagram --dump-library default-lib.svg`
+-- 
+-- You can then add your own symbols tag in it and use it by calling
+-- `asciidiagram --with-library your-lib.svg`.
 -- 

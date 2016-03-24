@@ -142,7 +142,64 @@ baseExample =
   "+---------+     |         |\n" <>
   "|{flat}   |     +--+------/\n" <>
   "\\---*-----/<=======/\n" <>
-  "::: .flat { fill: #DDD; }"
+  "::: .flat .filled_shape { fill: #DED; }"
+
+shapeExample :: T.Text
+shapeExample = T.unlines
+  [ " +---------+  +----------+"
+  , " |         |  |          |"
+  , " | circle  |  |          |"
+  , " |         |  |    io    |"
+  , " |{circle} |  | {io}     |"
+  , " +---------+  +----------+"
+  , ""
+  , " +----------+  +----------+"
+  , " |document  |  |          |"
+  , " |          |  |          |"
+  , " |          |  | storage  |"
+  , " |{document}|  | {storage}|"
+  , " +----------+  +----------+"
+  , ""
+  , "::: .circle .filled_shape { shape: circle; }"
+  , "::: .document .filled_shape { shape: document; }"
+  , "::: .storage .filled_shape { shape: storage; }"
+  , "::: .io .filled_shape { shape: io; }"
+  ]
+
+deepStyleExample :: T.Text
+deepStyleExample =
+  " /------------------------------------------------------\\ .\n" <>
+  " |s100                                                  |\n" <>
+  " |    /----------------------------\\                    |\n" <>
+  " |    |s1         /--------\\       |  e1    /--------\\  |\n" <>
+  " |    |      *--->|  s2    |       +------->|  s10   |  |\n" <>
+  " |    +----+      \\---+----/       |        \\--------/  |\n" <>
+  " |    | i4 |          |            |           ^        |\n" <>
+  " |    |{ii}+---------\\| e1  {lo}   |           |        |\n" <>
+  " |    +----+         vv            | ealarm    |        |   e0      /-------------\\ .\n" <>
+  " |    |            /--------\\      +-----------/        +---------->|    s50      |\n" <>
+  " |    +----\\       | s3 {lu}|      |                    |           \\-------------/\n" <>
+  " |    | o5 |   e2  \\--+-----/      |                    |\n" <>
+  " |    |{oo}|<---------/            |<-\\                 |\n" <>
+  " |    \\-+--+--------------------+--/  |                 |\n" <>
+  " |      |                       |     | eReset          |\n" <>
+  " |      |                       \\-----/                 |\n" <>
+  " |      v                                               |\n" <>
+  " |  /--------\\                                          |\n" <>
+  " |  |  s20   |                  {li}                    |\n" <>
+  " |  \\--------/                                          |\n" <>
+  " \\------------------------------------------------------/\n" <>
+  "\n" <>
+  "::: .li .line_element { stroke: purple; }\n" <>
+  "::: .li .arrow_head, .li text { fill: gray; }\n" <>
+  "::: .lo .line_element { stroke: blue; }\n" <>
+  "::: .lo .arrow_head, .lo text { fill: green; }\n" <>
+  "::: .lu .line_element { stroke: red; }\n" <>
+  "::: .lu .arrow_head, .lu text { fill: orange; }\n" <>
+  "::: .ii .filled_shape { fill: #DDF; }\n" <>
+  "::: .ii text { fill: blue; }\n" <>
+  "::: .oo .filled_shape { fill: #DFD; }\n" <>
+  "::: .oo text { fill: pink; }\n"
 
 data Doc
   = P      T.Text
@@ -199,28 +256,62 @@ bulletDoc =
 
 styleDoc :: [Doc]
 styleDoc =
-  [P ("The shapes can ba annotated with a tag like `{tagname}`.\n" <>
-      "Tags will be inserted in the class attribute of the shape\n" <>
-      "and can then be stylized with a CSS.\n")
+  [P $ T.unlines
+     ["The shapes can ba annotated with a tag like `{tagname}`."
+     ,"Tags will be inserted in the class attribute of the shape"
+     ,"and can then be stylized with a CSS."
+     ]
   ,Schema "styleExample" styleExample
-  ,P ("Inline css styles are introduced with the \":::\" prefix\n" <>
-      "at the beginning of the line. They are introduced in the\n" <>
-      "style section of the generated CSS file")
-  ,P ("The generated geometry also possess some predefined class\n" <>
-      "which are overidable:\n" <>
-      "\n" <>
-      " * \"dashed_elem\" is applied on every dashed element.\n" <>
-      "\n" <>
-      " * \"filled_shape\" is applied on every closed shape.\n" <>
-      "\n" <>
-      " * \"arrow_head\" is applied on arrow head.\n" <>
-      "\n" <>
-      " * \"bullet\" on every bullet placed on a shape or line.\n" <>
-      "\n" <>
-      " * \"line_element\" on every line element, this include the arrow head.\n" <>
-      "\n" <>
-      "You can then customize the appearance of the diagram as you want.\n")
+  ,P $ T.unlines
+     ["Inline css styles are introduced with the \":::\" prefix"
+     ,"at the beginning of the line. They are introduced in the"
+     ,"style section of the generated CSS file"
+     ]
+  ,P $ T.unlines
+     ["The generated geometry also possess some predefined class"
+     ,"which are overidable:"
+     ,""
+     ," * \"dashed_elem\" is applied on every dashed element."
+     ,""
+     ," * \"filled_shape\" is applied on every closed shape."
+     ,""
+     ," * \"arrow_head\" is applied on arrow head."
+     ,""
+     ," * \"bullet\" on every bullet placed on a shape or line."
+     ,""
+     ," * \"line_element\" on every line element, this include the arrow head."
+     ,""
+     ,"You can then customize the appearance of the diagram as you want."
+     ]
   ]
+
+hierarchicalDoc :: [Doc]
+hierarchicalDoc =
+   [P ("Starting with version 1.3, all shapes, text and lines are\n" <>
+       "hierachised, a shape within a shape will be integrated within\n" <>
+       "the same group. This allows more complex styling: ")
+   ,Schema "deepStyleExample" deepStyleExample
+   ,P ("In the previous example, we can see that the lines color are\n" <>
+       "'shape scoped' and the tag applied to the shape above them\n" <>
+       "applies to them")
+   ]
+
+shapeDoc :: [Doc]
+shapeDoc =
+   [P ("From version 1.3, you can substitute the shape of your element\n" <>
+       "with one from a shape library. Right now the shape library is\n" <>
+       "relatively small:")
+   ,Schema "shapeExample" shapeExample
+   ,P ("The mechanism use CSS styling to change the shape, if a CSS rule\n" <>
+       "possess a `shape` pseudo attribute, then the generated shape is replaced\n" <>
+       "with a SVG `use` tag with the value of the shape attribute as `href`")
+   ,P ("But, you can create your own style library and change the default\n" <>
+       "stylesheet. You can retrieve the default one with the shell command\n" <>
+       "`asciidiagram --dump-library default-lib.svg`\n" <>
+       "\n" <>
+       "You can then add your own symbols tag in it and use it by calling\n" <>
+       "`asciidiagram --with-library your-lib.svg`.\n")
+   ]
 
 introDoc :: [Doc]
 introDoc =
@@ -237,6 +328,8 @@ doc =
   ,("shapesdoc", shapesDoc)
   ,("bulletdoc", bulletDoc)
   ,("styledoc", styleDoc)
+  ,("hierarchicalDoc", hierarchicalDoc)
+  ,("shapeDoc", shapeDoc)
   ]
     
 cleanupHaddock :: T.Text -> T.Text
