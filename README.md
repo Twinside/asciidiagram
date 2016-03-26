@@ -153,6 +153,7 @@ overidable:
 
  * `dashed_elem` is applyied on every dashed element.
  * `filled_shape` is applyied on every closed shape.
+ * `arrow_head` is applied on arrow head.
  * `bullet` on every bullet placed on a shape or line.
  * `line_element` on every line element, this include the arrow head.
 

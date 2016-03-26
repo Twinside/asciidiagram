@@ -15,7 +15,7 @@
 -- +---------+     |         |
 -- |{flat}   |     +--+------\/
 -- \\---*-----\/\<=======\/
--- ::: .flat { fill: #DDD; }
+-- ::: .flat .filled_shape { fill: #DDD; }
 -- @
 -- <<docimages/baseExample.svg>>
 -- 
@@ -52,8 +52,11 @@ module Text.AsciiDiagram
     -- ** Styles
     -- $styledoc
 
-    -- * Usage example
-    -- $example
+    -- ** Hierarchical styles
+    -- $hierarchicalDoc
+
+    -- ** Shapes
+    -- $shapeDoc
 
     -- * Functions
     svgOfDiagram
@@ -70,6 +73,8 @@ module Text.AsciiDiagram
   , imageOfDiagramAtSize
   , pdfOfDiagramAtSize
 
+    -- * Library
+  , defaultLibrary
 
     -- * Document description
   , Diagram( .. ) 
@@ -90,7 +95,6 @@ import Control.Applicative( (<$>) )
 import Data.Monoid( (<>))
 import Control.Monad( forM_ )
 import Control.Monad.ST( runST )
-import Control.Monad.State.Strict( runState, put, get )
 import Data.Function( on )
 import Data.List( partition, sortBy )
 import qualified Data.ByteString.Lazy as LB
@@ -154,27 +158,15 @@ charBoardOfText textLines = CharBoard
 
       VU.unsafeFreeze emptyBoard
 
-data HorizontalPoints
-  = WithHorizontalSegments
-  | WithoutHorizontalSegments
-  deriving Eq
 
-allowsHorizontal :: HorizontalPoints -> Bool
-allowsHorizontal WithHorizontalSegments = True
-allowsHorizontal WithoutHorizontalSegments = False
-
-pointsOfShape :: F.Foldable f => HorizontalPoints -> f Shape -> [Point]
-pointsOfShape horizInfo = F.concatMap (F.concatMap go . shapeElements) where
-  withHorizontal = allowsHorizontal horizInfo
-
+pointsOfShape :: F.Foldable f => f Shape -> [Point]
+pointsOfShape = F.concatMap (F.concatMap go . shapeElements) where
   go (ShapeAnchor p _) = [p]
   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey })
     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]]
     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]]
-    | withHorizontal && sy == ey && sx >= ex =
-        [V2 xx sy | xx <- [ex .. sx]]
-    | withHorizontal && sy == ey =
-        [V2 xx sy | xx <- [sx .. ex]]
+    | sy == ey && sx >= ex = [V2 xx sy | xx <- [ex .. sx]]
+    | sy == ey = [V2 xx sy | xx <- [sx .. ex]]
     | otherwise            = []
 
 cleanLines :: [Int] -> CharBoard -> CharBoard
@@ -189,8 +181,8 @@ cleanLines idxs board = board { _boardData = _boardData board VU.// toSet }
 
 cleanupShapes :: (F.Foldable f) => f Shape -> CharBoard -> CharBoard
 cleanupShapes shapes board = board { _boardData = _boardData board VU.// toSet }
-  where toSet = [(x + y * _boardWidth board, ' ')
-                    | V2 x y <- pointsOfShape WithHorizontalSegments shapes]
+  where
+    toSet = [(x + y * _boardWidth board, ' ') | V2 x y <- pointsOfShape shapes]
 
 
 pointComp :: Point -> Point -> Ordering
@@ -198,8 +190,29 @@ pointComp (V2 x1 y1) (V2 x2 y2) = case compare y1 y2 of
   EQ -> compare x1 x2
   a -> a
 
-rangesOfShapes :: Shape -> [(Point, Point)]
-rangesOfShapes shape = pairAssoc sortedPoints
+featuresOfClosedShape :: Shape -> [Point]
+featuresOfClosedShape = F.fold . go . shapeElements where
+   go [] = []
+   -- If we got something like +----+ we skip the first anchor and
+   -- the segment.
+   go ( ShapeAnchor (V2 _ ay1) _
+      : ShapeSegment Segment { _segStart = V2 _ sy, _segEnd = V2 _ ey }
+      : rest@(ShapeAnchor (V2 _ ay2) _ : _)
+      )
+       | ay1 == ay2 && sy == ey && ay1 == sy = go rest
+   go (ShapeAnchor p _: rest) = [p] : go rest
+   go (ShapeSegment Segment { _segStart = V2 sx sy, _segEnd = V2 ex ey } : rest)
+     | sx == ex && sy >= ey = [V2 sx yy | yy <- [ey .. sy]] : after
+     | sx == ex             = [V2 sx yy | yy <- [sy .. ey]] : after
+     | otherwise           = after
+       where after = go rest
+
+rangesOfOpenedShape :: Shape -> [(Point, Point)]
+rangesOfOpenedShape s = fmap dup . sortBy pointComp $ pointsOfShape [s]
+  where dup a = (a, a)
+
+rangesOfClosedShape :: Shape -> [(Point, Point)]
+rangesOfClosedShape shape = pairAssoc sortedPoints
   where
    pairAssoc  [] = []
    pairAssoc [_] = []
@@ -207,56 +220,98 @@ rangesOfShapes shape = pairAssoc sortedPoints
       | y1 == y2 = (p1, p2) : pairAssoc rest
       | otherwise = pairAssoc lst
 
-   sortedPoints = sortBy pointComp
-                $ pointsOfShape WithoutHorizontalSegments [shape]
+   sortedPoints = sortBy pointComp $ featuresOfClosedShape shape
 
 
-associateTags :: [Shape] -> [TextZone] -> ([Shape], [TextZone])
-associateTags shapes tagZones =
-  expandTag $ runState (mapM go shapes) sortedZones where
+class RangeDecomposable a where
+  rangesOf :: a -> [(Point, Point)]
 
-  sortedZones =
-    sortBy (pointComp `on` _textZoneOrigin) tagZones
+instance RangeDecomposable Shape where
+  rangesOf s
+     | shapeIsClosed s = rangesOfClosedShape s
+     | otherwise = rangesOfOpenedShape s
 
-  isInRange (V2 px py) (V2 x1 y1, V2 x2 y2) =
-    py == y1 && py == y2 && x1 < px && px < x2
+instance RangeDecomposable TextZone where
+  rangesOf txt = [(orig, V2 (x + txtLength) y)] where
+    orig@(V2 x y) = _textZoneOrigin txt
+    txtLength = T.length $ _textZoneContent txt
+
+
+contains :: (RangeDecomposable a, RangeDecomposable b) => a -> b -> Bool
+contains sa sb = go (rangesOf sa) (rangesOf sb) where
+  go _      []    = True
+  go []     (_:_) = False
+  go ((V2 _ ya, _):rest1) rest2@((V2 _ yb, _):_)
+    -- A part of second shape is before potentially englobing shpae
+    -- so sa can't contain sb
+    | ya > yb = False   
+    -- sa may be bigger, just skip
+    | ya < yb = go rest1 rest2
+  -- here ya == yb
+  go sal@((V2 xa1 _, V2 xa2 _):rest1)
+     sar@((V2 xb1 _, V2 xb2 _):rest2)
+    -- sb is before any range of sa, so we must have
+    -- missed something, sa not containing sb
+    | xb1 < xa1 = False
+    -- sb is in the range bounds
+    | xa1 <= xb1 && xb2 <= xa2 = go sal rest2
+    -- Maybe sa has another range on the same line
+    | xb1 > xa2 = go rest1 sar
+    | otherwise = False
   
-  expandTag (s, zones) = (s, fmap expander zones) where
-    expander t = t { _textZoneContent = "{" <> _textZoneContent t <> "}" }
+areaOfShape :: Shape -> Int
+areaOfShape = F.sum . fmap dist . rangesOfClosedShape
+  where
+    -- we can use manathan distance here
+    dist (V2 x1 y1, V2 x2 y2) = abs (x1 - x2) + abs (y1 - y2)
 
-  insertAlls shape =
-    foldr S.insert (shapeTags shape) . fmap _textZoneContent
+sortByArea :: [Shape] -> [Shape]
+sortByArea shapes = sorted <> opened
+  where
+    (closed, opened) = partition shapeIsClosed shapes
+    sorted =
+        fmap snd . reverse $ sortBy (compare `on` fst) [(areaOfShape s, s) | s <- closed]
 
-  go shape | not $ shapeIsClosed shape = return shape
-  go shape = do
-    zones <- get
+hierarchise :: [Shape] -> [TextZone] -> [TextZone] -> [Element]
+hierarchise shapes allTexts = finalize . go areaSortedShapes allTexts where
+  areaSortedShapes = sortByArea shapes
 
-    let ranges = rangesOfShapes shape
-        isInShape TextZone { _textZoneOrigin = orig } =
-          any (isInRange orig) ranges
-        (inRanges, other) = partition isInShape zones
+  finalize (topShapes, topText, _topTags) =
+    (ElemShape <$> topShapes) <> (ElemText <$> topText)
 
-    put other
+  go [] texts tags = ([], texts, tags)
+  go (x:xs) texts tags | not (shapeIsClosed x) = (x:outShapes, outTexts, outTags)
+    where
+      (outShapes, outTexts, outTags) = go xs texts tags
+  go (x:xs) texts tags = (newShape : restShapes, restText, restTags)
+    where
+      (shapeInShape, shapeOutShape) = partition (x `contains`) xs
+      (textInShape, textOutShape) = partition (x `contains`) texts
+      (tagsInShape, tagsOutShape) = partition (x `contains`) tags
 
-    return shape { shapeTags = insertAlls shape inRanges }
+      (innerShapes, innerText, innerTags) = go shapeInShape textInShape tagsInShape
+      (restShapes, restText, restTags) = go shapeOutShape textOutShape tagsOutShape
 
+      newShape = x
+        { shapeChildren =
+            (ElemShape <$> innerShapes) <> (ElemText <$> innerText)
+        , shapeTags = S.fromList $ _textZoneContent <$> innerTags
+        }
 
 -- | Analyze an ascii diagram and extract all it's features.
 parseAsciiDiagram :: T.Text -> Diagram
 parseAsciiDiagram content = Diagram
-    { _diagramShapes = S.fromList taggedShape
-    , _diagramTexts = zones ++ unusedTags
+    { _diagramElements = S.fromList allElements
     , _diagramCellWidth = maximum $ fmap T.length textLines
     , _diagramCellHeight = length textLines - length styleLines
-    , _diagramStyles = styleLines
+    , _diagramStyles = reverse styleLines
     }
   where
     textLines = T.lines content
-    (taggedShape, unusedTags) = associateTags (S.toList validShapes) tags
+    allElements = hierarchise (S.toList validShapes) nonEmptyZones tags
 
-    (tags, zones) = detectTagFromTextZone
-                  $ extractTextZones shapeCleanedText 
-
+    nonEmptyZones = [t | t <- zones, not . T.null $ _textZoneContent t]
+    (tags, zones) = detectTagFromTextZone $ extractTextZones shapeCleanedText 
     (styleLineNumber, styleLines) = unzip $ styleLine parsed
 
     shapeCleanedText =
@@ -279,7 +334,7 @@ saveAsciiDiagramAsSvg fileName diagram =
 -- a SVG file on disk with a customized grid size.
 saveAsciiDiagramAsSvgAtSize :: FilePath -> GridSize -> Diagram -> IO ()
 saveAsciiDiagramAsSvgAtSize fileName gridSize =
-  saveXmlFile fileName . svgOfDiagramAtSize gridSize
+  saveXmlFile fileName . svgOfDiagramAtSize gridSize (defaultLibrary gridSize)
 
 -- | Render a Diagram as an image. The Dpi
 -- is 96. The IO dependency is there to allow loading of the
@@ -293,7 +348,8 @@ imageOfDiagram cache =
 -- font files used in the document.
 imageOfDiagramAtSize :: FontCache -> GridSize -> Diagram -> IO (Image PixelRGBA8)
 imageOfDiagramAtSize cache gridSize =
-  fmap fst . renderSvgDocument cache Nothing 96 . svgOfDiagramAtSize gridSize
+  fmap fst . renderSvgDocument cache Nothing 96
+           . svgOfDiagramAtSize gridSize (defaultLibrary gridSize)
 
 -- | Render a Diagram into a PDF file. IO dependency to allow
 -- loading of the font files used in the document.
@@ -305,20 +361,40 @@ pdfOfDiagram cache =
 -- IO dependency to allow loading of the font files used in the document.
 pdfOfDiagramAtSize :: FontCache -> GridSize -> Diagram -> IO LB.ByteString
 pdfOfDiagramAtSize cache size =
-  fmap fst . pdfOfSvgDocument cache Nothing 96 . svgOfDiagramAtSize size
+  fmap fst . pdfOfSvgDocument cache Nothing 96
+           . svgOfDiagramAtSize size (defaultLibrary size)
+
+-- $introDoc
+-- Ascii diagram, transform your ASCII art drawing to a nicer
+-- representation
+-- 
+-- 
+-- @
+--                 \/---------+
+-- +---------+     |         |
+-- |  ASCII  +----\>| Diagram |
+-- +---------+     |         |
+-- |{flat}   |     +--+------\/
+-- \\---*-----\/\<=======\/
+-- ::: .flat .filled_shape { fill: #DED; }
+-- @
+-- <<docimages/baseExample.svg>>
+-- 
 
 -- $linesdoc
 -- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n
 -- 
--- >-----       
--- >  -------   
--- >            
--- >|  |        
--- >|  |        
--- >|  \----    
--- >|           
--- >+-----      
---
+-- 
+-- @
+--  -----       
+--    -------   
+--              
+--  |  |        
+--  |  |        
+--  |  \\----    
+--  |           
+--  +-----      
+-- @
 -- <<docimages/simple_lines.svg>>
 -- 
 -- You can use dashed lines by using ':' for vertical lines or '=' for\nhorizontal lines.
@@ -445,13 +521,102 @@ pdfOfDiagramAtSize cache size =
 -- The generated geometry also possess some predefined class
 -- which are overidable:
 -- 
---  * `dashed_elem` is applyied on every dashed element.
+--  * "dashed_elem" is applied on every dashed element.
 -- 
---  * `filled_shape` is applyied on every closed shape.
+--  * "filled_shape" is applied on every closed shape.
 -- 
---  * `bullet` on every bullet placed on a shape or line.
+--  * "arrow_head" is applied on arrow head.
 -- 
---  * `line_element` on every line element, this include the arrow head.
+--  * "bullet" on every bullet placed on a shape or line.
+-- 
+--  * "line_element" on every line element, this include the arrow head.
 -- 
 -- You can then customize the appearance of the diagram as you want.
+-- 
+
+-- $hierarchicalDoc
+-- Starting with version 1.3, all shapes, text and lines are
+-- hierachised, a shape within a shape will be integrated within
+-- the same group. This allows more complex styling: 
+-- 
+-- 
+-- @
+--  \/------------------------------------------------------\\ .
+--  |s100                                                  |
+--  |    \/----------------------------\\                    |
+--  |    |s1         \/--------\\       |  e1    \/--------\\  |
+--  |    |      *---\>|  s2    |       +-------\>|  s10   |  |
+--  |    +----+      \\---+----\/       |        \\--------\/  |
+--  |    | i4 |          |            |           ^        |
+--  |    |{ii}+---------\\| e1  {lo}   |           |        |
+--  |    +----+         vv            | ealarm    |        |   e0      \/-------------\\ .
+--  |    |            \/--------\\      +-----------\/        +----------\>|    s50      |
+--  |    +----\\       | s3 {lu}|      |                    |           \\-------------\/
+--  |    | o5 |   e2  \\--+-----\/      |                    |
+--  |    |{oo}|\<---------\/            |\<-\\                 |
+--  |    \\-+--+--------------------+--\/  |                 |
+--  |      |                       |     | eReset          |
+--  |      |                       \\-----\/                 |
+--  |      v                                               |
+--  |  \/--------\\                                          |
+--  |  |  s20   |                  {li}                    |
+--  |  \\--------\/                                          |
+--  \\------------------------------------------------------\/
+-- 
+-- ::: .li .line_element { stroke: purple; }
+-- ::: .li .arrow_head, .li text { fill: gray; }
+-- ::: .lo .line_element { stroke: blue; }
+-- ::: .lo .arrow_head, .lo text { fill: green; }
+-- ::: .lu .line_element { stroke: red; }
+-- ::: .lu .arrow_head, .lu text { fill: orange; }
+-- ::: .ii .filled_shape { fill: #DDF; }
+-- ::: .ii text { fill: blue; }
+-- ::: .oo .filled_shape { fill: #DFD; }
+-- ::: .oo text { fill: pink; }
+-- @
+-- <<docimages/deepStyleExample.svg>>
+-- 
+-- In the previous example, we can see that the lines color are
+-- 'shape scoped' and the tag applied to the shape above them
+-- applies to them
+-- 
+
+-- $shapeDoc
+-- From version 1.3, you can substitute the shape of your element
+-- with one from a shape library. Right now the shape library is
+-- relatively small:
+-- 
+-- 
+-- @
+--  +---------+  +----------+
+--  |         |  |          |
+--  | circle  |  |          |
+--  |         |  |    io    |
+--  |{circle} |  | {io}     |
+--  +---------+  +----------+
+-- 
+--  +----------+  +----------+
+--  |document  |  |          |
+--  |          |  |          |
+--  |          |  | storage  |
+--  |{document}|  | {storage}|
+--  +----------+  +----------+
+-- 
+-- ::: .circle .filled_shape { shape: circle; }
+-- ::: .document .filled_shape { shape: document; }
+-- ::: .storage .filled_shape { shape: storage; }
+-- ::: .io .filled_shape { shape: io; }
+-- @
+-- <<docimages/shapeExample.svg>>
+-- 
+-- The mechanism use CSS styling to change the shape, if a CSS rule
+-- possess a `shape` pseudo attribute, then the generated shape is replaced
+-- with a SVG `use` tag with the value of the shape attribute as `href`
+-- 
+-- But, you can create your own style library and change the default
+-- stylesheet. You can retrieve the default one with the shell command
+-- `asciidiagram --dump-library default-lib.svg`
+-- 
+-- You can then add your own symbols tag in it and use it by calling
+-- `asciidiagram --with-library your-lib.svg`.
 -- 
