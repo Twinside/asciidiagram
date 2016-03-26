@@ -1,32 +1,31 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Text.AsciiDiagram.SvgRender( GridSize( .. )
-                                  , defaultGridSize
-                                  , svgOfDiagram
-                                  , svgOfDiagramAtSize
-                                  ) where
+module Text.AsciiDiagram.SvgRender
+    ( GridSize( .. )
+    , defaultGridSize
+    , svgOfDiagram
+    , svgOfDiagramAtSize
+    , defaultLibrary
+    ) where
 
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid( mempty )
 import Control.Applicative( (<$>) )
 #endif
 
+import Data.Monoid( (<>) )
 import Control.Monad.State.Strict( execState )
-import Data.Monoid( Last( .. ), (<>) )
 
 import Graphics.Svg.Types
                    ( HasDrawAttributes( .. )
-                   , Texture( ColorRef )
                    , Document( .. )
                    , drawAttr )
 import Graphics.Svg( cssRulesOfText )
 
-import Codec.Picture( PixelRGBA8( PixelRGBA8 ) )
 import qualified Graphics.Svg.Types as Svg
-import qualified Data.Map as M
+import qualified Graphics.Svg.CssTypes as Css
 import qualified Data.Set as S
 import qualified Data.Text as T
-import Text.Printf
 import Linear( V2( .. )
              , (^+^)
              , (^-^)
@@ -34,10 +33,12 @@ import Linear( V2( .. )
              , perp
              , normalize
              )
-import Control.Lens( zoom, (.=), (%=), (%~), (&) )
+import Control.Lens( zoom, (^.), (.=), (%=), (%~), (&) )
 
-import Text.AsciiDiagram.Geometry
+import Text.AsciiDiagram.BoundingBoxEstimation
+import Text.AsciiDiagram.DefaultContext
 import Text.AsciiDiagram.DiagramCleaner
+import Text.AsciiDiagram.Geometry
 
 {-import Debug.Trace-}
 {-import Text.Groom-}
@@ -78,33 +79,24 @@ isShapeDashed = any isDashed . shapeElements where
   isDashed (ShapeSegment Segment { _segDraw = SegmentDashed }) = True
 
 applyDefaultShapeDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
-applyDefaultShapeDrawAttr = execState . zoom drawAttr $ do
-    strokeColor .= toLC 0 0 0 255
-    attrClass %= ("filled_shape":) 
-    strokeWidth .= toL (Svg.Num 1)
-  where
-    toL = Last . Just
-    toLC r g b a =
-        toL . ColorRef $ PixelRGBA8 r g b a
+applyDefaultShapeDrawAttr el =
+  el & drawAttr.attrClass %~ ("filled_shape":) 
 
 applyLineArrowDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
-applyLineArrowDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= ("arrow_head":)
+applyLineArrowDrawAttr el =
+  el & drawAttr.attrClass %~ ("arrow_head":)
 
 applyBulletDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
-applyBulletDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= ("bullet":)
+applyBulletDrawAttr el =
+  el & drawAttr.attrClass %~ ("bullet":)
+
+cleanupUseAttributes ::  (Svg.WithDrawAttributes a) => a -> a
+cleanupUseAttributes = execState . zoom drawAttr $ do
+  attrClass .= []
 
 applyDefaultLineDrawAttr :: (Svg.WithDrawAttributes a) => a -> a
-applyDefaultLineDrawAttr = execState . zoom drawAttr $ do
-    attrClass %= ("line_element":)
-    fillColor .= toL Svg.FillNone
-    strokeColor .= toLC 0 0 0 255
-    strokeWidth .= toL (Svg.Num 1)
-  where
-    toL = Last . Just
-    toLC r g b a =
-        toL . ColorRef $ PixelRGBA8 r g b a
+applyDefaultLineDrawAttr el =
+  el & drawAttr.attrClass %~ ("line_element":)
 
 
 startPointOf :: ShapeElement -> Point
@@ -442,71 +434,101 @@ textToTree gscale zone = Svg.TextTree Nothing txt
     V2 x y = toSvg gscale (_textZoneOrigin zone) ^+^ correction
     txt = Svg.textAt (Svg.Num (x+0.5), Svg.Num (y+0.5)) $ _textZoneContent zone
 
-defaultCss :: Float -> T.Text
-defaultCss textSize = T.pack $ printf
-  ("\n" <>
-   "text { font-family: Consolas, \"DejaVu Sans Mono\", monospace; font-size: %dpx }\n" <>
-   ".dashed_elem { stroke-dasharray: 4, 3 }\n" <>
-   ".filled_shape { fill: url(#shape_light) }\n" <>
-   ".bullet { stroke-width: 1px; fill: white; stroke: black }\n" <>
-   ".arrow_head { fill: black; stroke: none; }\n"
-  )
-  (2 + floor textSize :: Int)
-
-lightShapeGradient :: Svg.Element
-lightShapeGradient = Svg.ElementLinearGradient $
-    Svg.defaultSvg
-        { Svg._linearGradientStart = (Svg.Percent 0, Svg.Percent 0)
-        , Svg._linearGradientStop =  (Svg.Percent 0, Svg.Percent 1)
-        , Svg._linearGradientStops =
-            [ Svg.GradientStop 0 $ PixelRGBA8 245 245 245 255
-            , Svg.GradientStop 1 $ PixelRGBA8 216 216 216 255
-            ]
-        }
 
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image.
 svgOfDiagram :: Diagram -> Svg.Document
-svgOfDiagram = svgOfDiagramAtSize defaultGridSize where
+svgOfDiagram =
+    svgOfDiagramAtSize defaultGridSize (defaultLibrary defaultGridSize)
+
+svgOfShape :: GridSize -> Shape -> Svg.Tree
+svgOfShape scale shape
+  | shapeIsClosed shape =
+      applyDefaultShapeDrawAttr $ shapeToTree scale shape
+  | otherwise =
+      applyDefaultLineDrawAttr $ shapeToTree strokeScale shape
+  where
+    strokeScale = scale { _gridShapeContraction = 0 }
+
+
+svgOfElement :: GridSize -> Element -> Svg.Tree
+svgOfElement scale (ElemText txt) = textToTree scale txt
+svgOfElement scale (ElemShape shape) = 
+  case shapeChildren shape of
+    [] -> svgOfShape scale shape
+    _:_ -> Svg.GroupTree $ group
+  where
+    thisShape = svgOfShape scale shape
+    group = Svg.defaultSvg
+      { Svg._groupDrawAttributes =
+          mempty { Svg._attrClass = S.toList $ shapeTags shape }
+      , Svg._groupChildren =
+          thisShape : fmap (svgOfElement scale) (shapeChildren shape)
+      , Svg._groupViewBox = Nothing
+      }
+
+shapeRewriter :: [Css.CssRule] -> Svg.Tree -> Svg.Tree
+shapeRewriter rules = Svg.zipTree go where
+  go [] = Svg.None
+  go ([]:_) = Svg.None
+  go context@((t:_):_) = case reverse shapeDeclarations of
+      [] -> t
+      (([Css.CssIdent i]:_): _) -> Svg.UseTree (useInfo i) Nothing
+      _ -> t
+   where
+     useInfo name = cleanupUseAttributes $ Svg.Use
+        { Svg._useDrawAttributes = t ^. Svg.drawAttr
+        , Svg._useBase = (Css.Num x, Css.Num y)
+        , Svg._useName = T.unpack name
+        , Svg._useWidth = Just (Css.Num w)
+        , Svg._useHeight = Just (Css.Num h)
+        }
+
+     BoundingBox pMin@(V2 x y) pMax = boundingBoxOf t
+     V2 w h = pMax ^-^ pMin
+
+     shapeDeclarations = 
+        [el | Css.CssDeclaration "shape" el <- Css.findMatchingDeclarations rules context]
 
 -- | Transform an Ascii diagram to a SVG document which
 -- can be saved or converted to an image, with a customizable
 -- grid size.
-svgOfDiagramAtSize :: GridSize -> Diagram -> Svg.Document
-svgOfDiagramAtSize scale diagram = Document
+svgOfDiagramAtSize :: GridSize -> Svg.Document -> Diagram -> Svg.Document
+svgOfDiagramAtSize scale style diagram = Document
   { _viewBox = Nothing
   , _width =
       toSvgSize _gridCellWidth $ _diagramCellWidth diagram + 1
   , _height =
       toSvgSize _gridCellHeight $ _diagramCellHeight diagram + 1
-  , _elements = closedSvg ++ lineSvg ++ textSvg
-  , _definitions = M.fromList
-        [("shape_light", lightShapeGradient)]
+  , _elements =
+      shapeRewriter allRules . svgOfElement scale <$> shapes
+  , _definitions = _definitions style
   , _description = ""
-  , _styleRules = defaultCssRules ++ customCssRules
+  , _styleRules = allRules
   , _documentLocation = ""
   }
   where
-    (closed, opened) = S.partition shapeIsClosed shapes
-
-    defaultCssRules =
-      cssRulesOfText . defaultCss $ _gridCellHeight scale
-
+    allRules = _styleRules style <> customCssRules
     customCssRules = 
       cssRulesOfText . T.unlines $ _diagramStyles diagram
 
-    shapes = _diagramShapes diagram
-
-    closedSvg =
-        applyDefaultShapeDrawAttr . shapeToTree scale <$> filter isShapePossible
-                                                            (S.toList closed)
-    lineSvg =
-        applyDefaultLineDrawAttr . shapeToTree strokeScale <$> S.toList opened
+    isDrawable (ElemText _) = True
+    isDrawable (ElemShape shape) =
+      not (shapeIsClosed shape) || isShapePossible shape
+    shapes = filter isDrawable . S.toList $ _diagramElements diagram
 
     toSvgSize accessor var =
         Just . Svg.Num . realToFrac $ fromIntegral var * accessor scale + 5
 
-    textSvg = textToTree scale <$> _diagramTexts diagram
-
-    strokeScale = scale { _gridShapeContraction = 0 }
+defaultLibrary :: GridSize -> Svg.Document
+defaultLibrary size = Document
+  { _viewBox = Nothing
+  , _width = Nothing
+  , _height = Nothing
+  , _elements =  []
+  , _definitions = defaultDefinitions
+  , _description = ""
+  , _styleRules = defaultCssRules $ _gridCellHeight size
+  , _documentLocation = ""
+  }
 

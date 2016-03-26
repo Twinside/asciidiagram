@@ -1,5 +1,6 @@
 dist
 .cabal-sandbox
+.stack-work
 test_output
 cabal.sandbox.config
 out.txt
