@@ -40,109 +40,119 @@ toPng lst = do
       writePng (docOutputFolder </> fileName) img
 
 simpleLines :: T.Text
-simpleLines =
-  " -----       \n" <>
-  "   -------   \n" <>
-  "             \n" <>
-  " |  |        \n" <>
-  " |  |        \n" <>
-  " |  \\----    \n" <>
-  " |           \n" <>
-  " +-----      \n"
+simpleLines = T.unlines
+  [ " -----       "
+  , "   -------   "
+  , "             "
+  , " |  |        "
+  , " |  |        "
+  , " |  \\----    "
+  , " |           "
+  , " +-----      "
+  ]
 
 dashedLines :: T.Text
-dashedLines =
-  " -----       \n" <>
-  "   -=-----   \n" <>
-  "             \n" <>
-  " |  :        \n" <>
-  " |  |        \n" <>
-  " |  \\----    \n" <>
-  " |           \n" <>
-  " +--=--      \n"
+dashedLines = T.unlines
+  [ " -----       "
+  , "   -=-----   "
+  , "             "
+  , " |  :        "
+  , " |  |        "
+  , " |  \\----    "
+  , " |           "
+  , " +--=--      "
+  ]
 
 arrows :: T.Text
-arrows =
-  "     ^\n" <>
-  "     |\n" <>
-  "     |\n" <>
-  "<----+---->\n" <>
-  "     |  < > v ^\n" <>
-  "     |\n" <>
-  "     v\n" <>
-  ""
+arrows = T.unlines
+  [ "     ^"
+  , "     |"
+  , "     |"
+  , "<----+---->"
+  , "     |  < > v ^"
+  , "     |"
+  , "     v"
+  , ""
+  ]
 
 complexClosed :: T.Text
-complexClosed =
-  "  +------+\n" <>
-  "  |      |\n" <>
-  "  |      +--+\n" <>
-  "  |      |  |\n" <>
-  "  +---+--+  |\n" <>
-  "      |     |\n" <>
-  "      +-----+\n"
+complexClosed = T.unlines
+  [ "  +------+"
+  , "  |      |"
+  , "  |      +--+"
+  , "  |      |  |"
+  , "  +---+--+  |"
+  , "      |     |"
+  , "      +-----+"
+  ]
 
 dashingClosed :: T.Text
-dashingClosed =
-  "  +--+  +--+  +=-+  +=-+\n" <>
-  "  |  |  :  |  |  |  |  :\n" <>
-  "  +--+  +--+  +--+  +-=+\n"
+dashingClosed = T.unlines
+  [ "  +--+  +--+  +=-+  +=-+"
+  , "  |  |  :  |  |  |  |  :"
+  , "  +--+  +--+  +--+  +-=+"
+  ]
 
 curvedCorner :: T.Text
-curvedCorner =
-  "  /--+  +--\\  +--+  /--+\n" <>
-  "  |  |  |  |  |  |  |  |\n" <>
-  "  +--+  +--+  \\--+  +--+\n" <>
-  "\n" <>
-  "  /--+  /--\\  /--+  /--\\ .\n" <>
-  "  |  |  |  |  |  |  |  |\n" <>
-  "  +--/  +--+  \\--/  +--/\n" <>
-  "\n" <>
-  "  /--\\ .\n" <>
-  "  |  |\n" <>
-  "  \\--/\n" <>
-  ".\n"
+curvedCorner = T.unlines
+  [ "  /--+  +--\\  +--+  /--+"
+  , "  |  |  |  |  |  |  |  |"
+  , "  +--+  +--+  \\--+  +--+"
+  , ""
+  , "  /--+  /--\\  /--+  /--\\ ."
+  , "  |  |  |  |  |  |  |  |"
+  , "  +--/  +--+  \\--/  +--/"
+  , ""
+  , "  /--\\ ."
+  , "  |  |"
+  , "  \\--/"
+  , "."
+  ]
 
 bulletTest :: T.Text
-bulletTest =
-  "  *-*-*\n" <>
-  "  |   |  *----*\n" <>
-  "  +---/       |\n" <>
-  "          * * *\n"
+bulletTest = T.unlines
+  [ "  *-*-*"
+  , "  |   |  *----*"
+  , "  +---/       |"
+  , "          * * *"
+  ]
 
 styleExample :: T.Text
-styleExample =
-  " +--------+         +--------+\n" <>
-  " | Source +-------->| op1    |\n" <>
-  " | {src}  |         \\---+----/\n" <>
-  " +--------+             |\n" <>
-  "            +-------*<--/\n" <>
-  " +------+<--| op2   |\n" <>
-  " | Dest |   +-------+\n" <>
-  " |{dst} |\n" <>
-  " +------+\n" <>
-  "\n" <>
-  "::: .src { fill: #AAF; }\n" <>
-  "::: .dst { stroke: #FAA; stroke-width: 3px; }\n"
+styleExample = T.unlines
+  [ " +--------+         +--------+"
+  , " | Source +-------->| op1    |"
+  , " | {src}  |         \\---+----/"
+  , " +--------+             |"
+  , "            +-------*<--/"
+  , " +------+<--| op2   |"
+  , " | Dest |   +-------+"
+  , " |{dst} |"
+  , " +------+"
+  , ""
+  , "::: .src { fill: #AAF; }"
+  , "::: .dst { stroke: #FAA; stroke-width: 3px; }"
+  ]
 
 cabalExample :: T.Text
-cabalExample =
-  "                /---------+\n" <>
-  "+---------+     |         |\n" <>
-  "|  ASCII  +---->| Diagram |\n" <>
-  "+---------+     |         |\n" <>
-  "|         |     +--+------/\n" <>
-  "\\---*-----/<=======/\n"
+cabalExample = T.unlines
+  [ "                /---------+"
+  , "+---------+     |         |"
+  , "|  ASCII  +---->| Diagram |"
+  , "+---------+     |         |"
+  , "|         |     +--+------/"
+  , "\\---*-----/<=======/"
+  ]
 
 baseExample :: T.Text
-baseExample =
-  "                /---------+\n" <>
-  "+---------+     |         |\n" <>
-  "|  ASCII  +---->| Diagram |\n" <>
-  "+---------+     |         |\n" <>
-  "|{flat}   |     +--+------/\n" <>
-  "\\---*-----/<=======/\n" <>
-  "::: .flat .filled_shape { fill: #DED; }"
+baseExample = T.unlines
+  [ "                /---------+"
+  , "+---------+     |         |"
+  , "|  ASCII  +---->| Diagram |"
+  , "+---------+     |         |"
+  , "|{flat}   |     +--+------/"
+  , "\\---*-----/<=======/"
+  , "::: .flat .filled_shape { fill: #DED; }"
+  ]
 
 shapeExample :: T.Text
 shapeExample = T.unlines
@@ -167,39 +177,40 @@ shapeExample = T.unlines
   ]
 
 deepStyleExample :: T.Text
-deepStyleExample =
-  " /------------------------------------------------------\\ .\n" <>
-  " |s100                                                  |\n" <>
-  " |    /----------------------------\\                    |\n" <>
-  " |    |s1         /--------\\       |  e1    /--------\\  |\n" <>
-  " |    |      *--->|  s2    |       +------->|  s10   |  |\n" <>
-  " |    +----+      \\---+----/       |        \\--------/  |\n" <>
-  " |    | i4 |          |            |           ^        |\n" <>
-  " |    |{ii}+---------\\| e1  {lo}   |           |        |\n" <>
-  " |    +----+         vv            | ealarm    |        |   e0      /-------------\\ .\n" <>
-  " |    |            /--------\\      +-----------/        +---------->|    s50      |\n" <>
-  " |    +----\\       | s3 {lu}|      |                    |           \\-------------/\n" <>
-  " |    | o5 |   e2  \\--+-----/      |                    |\n" <>
-  " |    |{oo}|<---------/            |<-\\                 |\n" <>
-  " |    \\-+--+--------------------+--/  |                 |\n" <>
-  " |      |                       |     | eReset          |\n" <>
-  " |      |                       \\-----/                 |\n" <>
-  " |      v                                               |\n" <>
-  " |  /--------\\                                          |\n" <>
-  " |  |  s20   |                  {li}                    |\n" <>
-  " |  \\--------/                                          |\n" <>
-  " \\------------------------------------------------------/\n" <>
-  "\n" <>
-  "::: .li .line_element { stroke: purple; }\n" <>
-  "::: .li .arrow_head, .li text { fill: gray; }\n" <>
-  "::: .lo .line_element { stroke: blue; }\n" <>
-  "::: .lo .arrow_head, .lo text { fill: green; }\n" <>
-  "::: .lu .line_element { stroke: red; }\n" <>
-  "::: .lu .arrow_head, .lu text { fill: orange; }\n" <>
-  "::: .ii .filled_shape { fill: #DDF; }\n" <>
-  "::: .ii text { fill: blue; }\n" <>
-  "::: .oo .filled_shape { fill: #DFD; }\n" <>
-  "::: .oo text { fill: pink; }\n"
+deepStyleExample = T.unlines
+  [ " /------------------------------------------------------\\ ."
+  , " |s100                                                  |"
+  , " |    /----------------------------\\                    |"
+  , " |    |s1         /--------\\       |  e1    /--------\\  |"
+  , " |    |      *--->|  s2    |       +------->|  s10   |  |"
+  , " |    +----+      \\---+----/       |        \\--------/  |"
+  , " |    | i4 |          |            |           ^        |"
+  , " |    |{ii}+---------\\| e1  {lo}   |           |        |"
+  , " |    +----+         vv            | ealarm    |        |   e0      /-------------\\ ."
+  , " |    |            /--------\\      +-----------/        +---------->|    s50      |"
+  , " |    +----\\       | s3 {lu}|      |                    |           \\-------------/"
+  , " |    | o5 |   e2  \\--+-----/      |                    |"
+  , " |    |{oo}|<---------/            |<-\\                 |"
+  , " |    \\-+--+--------------------+--/  |                 |"
+  , " |      |                       |     | eReset          |"
+  , " |      |                       \\-----/                 |"
+  , " |      v                                               |"
+  , " |  /--------\\                                          |"
+  , " |  |  s20   |                  {li}                    |"
+  , " |  \\--------/                                          |"
+  , " \\------------------------------------------------------/"
+  , ""
+  , "::: .li .line_element { stroke: purple; }"
+  , "::: .li .arrow_head, .li text { fill: gray; }"
+  , "::: .lo .line_element { stroke: blue; }"
+  , "::: .lo .arrow_head, .lo text { fill: green; }"
+  , "::: .lu .line_element { stroke: red; }"
+  , "::: .lu .arrow_head, .lu text { fill: orange; }"
+  , "::: .ii .filled_shape { fill: #DDF; }"
+  , "::: .ii text { fill: blue; }"
+  , "::: .oo .filled_shape { fill: #DFD; }"
+  , "::: .oo text { fill: pink; }"
+  ]
 
 data Doc
   = P      T.Text
@@ -216,42 +227,50 @@ toHaddock = concatMap go where
            ,""
            ]
 
+pp :: [T.Text] -> Doc
+pp = P . T.unlines
+
 linesDoc :: [Doc]
 linesDoc =
-  [P ("The basic syntax of asciidiagrams is made of lines made out\\n" <>
-      "of \\'-\\' and \\'|\\' characters. They can be connected with anchors\\n" <>
-      "like \\'+\\' (direct connection) or \\'\\\\\\' and \\'\\/\\' (smooth connections)\\n"
-     )
+  [pp [ "The basic syntax of asciidiagrams is made of lines made out"
+      , "of \\'-\\' and \\'|\\' characters. They can be connected with anchors"
+      , "like \\'+\\' (direct connection) or \\'\\\\\\' and \\'\\/\\' (smooth connections)"
+      ]
   ,Schema "simple_lines" simpleLines
-  ,P ("You can use dashed lines by using ':' for vertical lines or '=' for\\n" <>
-      "horizontal lines.")
+  ,pp ["You can use dashed lines by using ':' for vertical lines or '=' for"
+      ,"horizontal line"]
   ,Schema "dashed_lines" dashedLines
-  ,P ("Arrows are made out of the \\'\\<\\', \\'\\>\\', \\'^\\' and \\'v\\'\\n"<>
-      "characters.\\n" <>
-      "If the arrows are not connected to any lines, the text is left as is.\\n")
+  ,pp [ "Arrows are made out of the \\'\\<\\', \\'\\>\\', \\'^\\' and \\'v\\'"
+      , "characters."
+      , "If the arrows are not connected to any lines, the text is left as is."
+      ]
   ,Schema "arrows" arrows
   ]
 
 shapesDoc :: [Doc]
 shapesDoc =
-  [P ("If the lines are closed, then it is detected as such and rendered\n" <>
-      "differently\n")
+  [pp [ "If the lines are closed, then it is detected as such and rendered"
+      , "differently"
+      ]
   ,Schema "complexClosed" complexClosed 
-  ,P ("If any of the segment posess one of the dashing markers (\\':\\' or \\'=\\')\n" <>
-      "Then the full shape will be dashed.\n")
+  ,pp [ "If any of the segment posess one of the dashing markers (\\':\\' or \\'=\\')"
+      , "Then the full shape will be dashed."
+      ]
   ,Schema "dashingClosed" dashingClosed 
-  ,P ("Any of the angle of a shape can curved one of the smooth corner anchor\n" <>
-      "(\\'\\\\\\' or \\'\\/\\')\n")
+  ,pp [ "Any of the angle of a shape can curved one of the smooth corner anchor"
+      , "(\\'\\\\\\' or \\'\\/\\')"
+      ]
   ,Schema "curvedCorner" curvedCorner 
   ]
 
 bulletDoc :: [Doc]
 bulletDoc =
-  [P ("Adding a \\'*\\' on a line or on a shape add a little circle on it.\n" <>
-      "If the bullet is not attached to any shape or lines, then it\n" <>
-      "will be render like any other text.\n")
+  [pp [ "Adding a \\'*\\' on a line or on a shape add a little circle on it."
+      , "If the bullet is not attached to any shape or lines, then it"
+      , "will be render like any other text."
+      ]
   ,Schema "bulletTest" bulletTest
-  ,P ("When used at connection points, it behaves like the \\'+\\' anchor.\n")
+  ,pp ["When used at connection points, it behaves like the \\'+\\' anchor."]
   ]
 
 styleDoc :: [Doc]
@@ -287,36 +306,42 @@ styleDoc =
 
 hierarchicalDoc :: [Doc]
 hierarchicalDoc =
-   [P ("Starting with version 1.3, all shapes, text and lines are\n" <>
-       "hierachised, a shape within a shape will be integrated within\n" <>
-       "the same group. This allows more complex styling: ")
+   [pp [ "Starting with version 1.3, all shapes, text and lines are"
+       , "hierachised, a shape within a shape will be integrated within"
+       , "the same group. This allows more complex styling: "
+       ]
    ,Schema "deepStyleExample" deepStyleExample
-   ,P ("In the previous example, we can see that the lines color are\n" <>
-       "'shape scoped' and the tag applied to the shape above them\n" <>
-       "applies to them")
+   ,pp [ "In the previous example, we can see that the lines color are"
+       , "'shape scoped' and the tag applied to the shape above them"
+       , "applies to them"
+       ]
    ]
 
 shapeDoc :: [Doc]
 shapeDoc =
-   [P ("From version 1.3, you can substitute the shape of your element\n" <>
-       "with one from a shape library. Right now the shape library is\n" <>
-       "relatively small:")
+   [pp [ "From version 1.3, you can substitute the shape of your element"
+       , "with one from a shape library. Right now the shape library is"
+       , "relatively small:"
+       ]
    ,Schema "shapeExample" shapeExample
-   ,P ("The mechanism use CSS styling to change the shape, if a CSS rule\n" <>
-       "possess a `shape` pseudo attribute, then the generated shape is replaced\n" <>
-       "with a SVG `use` tag with the value of the shape attribute as `href`")
-   ,P ("But, you can create your own style library and change the default\n" <>
-       "stylesheet. You can retrieve the default one with the shell command\n" <>
-       "`asciidiagram --dump-library default-lib.svg`\n" <>
-       "\n" <>
-       "You can then add your own symbols tag in it and use it by calling\n" <>
-       "`asciidiagram --with-library your-lib.svg`.\n")
+   ,pp [ "The mechanism use CSS styling to change the shape, if a CSS rule"
+       , "possess a `shape` pseudo attribute, then the generated shape is replaced"
+       , "with a SVG `use` tag with the value of the shape attribute as `href`"
+       ]
+   ,pp [ "But, you can create your own style library and change the default"
+       , "stylesheet. You can retrieve the default one with the shell command"
+       , "`asciidiagram --dump-library default-lib.svg`"
+       , ""
+       , "You can then add your own symbols tag in it and use it by calling"
+       , "`asciidiagram --with-library your-lib.svg`."
+       ]
    ]
 
 introDoc :: [Doc]
 introDoc =
-  [ P ("Ascii diagram, transform your ASCII art drawing to a nicer\n" <>
-       "representation")
+  [ pp ["Ascii diagram, transform your ASCII art drawing to a nicer"
+       , "representation"
+       ]
   , Schema "baseExample" baseExample
   ]
 
