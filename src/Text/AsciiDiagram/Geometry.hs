@@ -119,7 +119,7 @@ data Shape = Shape
   , shapeIsClosed :: !Bool
     -- | Tags "{tagname}" placed inside the shape.
   , shapeTags        :: !(S.Set T.Text)
-
+    -- | List of eleents contained in this shape
   , shapeChildren    :: ![Element]
   }
   deriving (Eq, Ord, Show)

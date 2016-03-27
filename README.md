@@ -14,9 +14,9 @@ Without introduction, Asciidiagram transform this:
     +---------+     |         |
     |  ASCII  +---->| Diagram |
     +---------+     |         |
-    |{flat}   |     +--+------/
+    | {flat}  |     +--+------/
     \---*-----/<=======/
-    ::: .flat { fill: #DDD; }
+    ::: .flat .filled_shape { fill: #DDD; }
 
 into that:
 ![Simili logo](../master/docimages/baseExample.png?raw=true "docimages/baseExample.svg")
@@ -139,8 +139,8 @@ be stylized with a CSS.
      |{dst} |
      +------+
 
-    ::: .src { fill: #AAF; }
-    ::: .dst { stroke: #FAA; stroke-width: 3px; }
+    ::: .src .filled_shape { fill: #AAF; }
+    ::: .dst .filled_shape { stroke: #FAA; stroke-width: 3px; }
 
 ![Styles](../master/docimages/styleExample.png?raw=true "docimages/styleExample.svg")
 
@@ -158,4 +158,86 @@ overidable:
  * `line_element` on every line element, this include the arrow head.
 
 You can then customize the appearance of the diagram as you want.
+
+Hierarchical styles
+-------------------
+Starting with version 1.3, all shapes, text and lines are hierachised, a shape
+within a shape will be integrated within the same group. This allows more
+complex styling: 
+
+
+     /------------------------------------------------------\ .
+     |s100                                                  |
+     |    /----------------------------\                    |
+     |    |s1         /--------\       |  e1    /--------\  |
+     |    |      *--->|  s2    |       +------->|  s10   |  |
+     |    +----+      \---+----/       |        \--------/  |
+     |    | i4 |          |            |           ^        |
+     |    |{ii}+---------\| e1  {lo}   |           |        |
+     |    +----+         vv            | ealarm    |        |   e0      /-------------\ .
+     |    |            /--------\      +-----------/        +---------->|    s50      |
+     |    +----\       | s3 {lu}|      |                    |           \-------------/
+     |    | o5 |   e2  \--+-----/      |                    |
+     |    |{oo}|<---------/            |<-\                 |
+     |    \-+--+--------------------+--/  |                 |
+     |      |                       |     | eReset          |
+     |      |                       \-----/                 |
+     |      v                                               |
+     |  /--------\                                          |
+     |  |  s20   |                  {li}                    |
+     |  \--------/                                          |
+     \------------------------------------------------------/
+    
+    ::: .li .line_element { stroke: purple; }
+    ::: .li .arrow_head, .li text { fill: gray; }
+    ::: .lo .line_element { stroke: blue; }
+    ::: .lo .arrow_head, .lo text { fill: green; }
+    ::: .lu .line_element { stroke: red; }
+    ::: .lu .arrow_head, .lu text { fill: orange; }
+    ::: .ii .filled_shape { fill: #DDF; }
+    ::: .ii text { fill: blue; }
+    ::: .oo .filled_shape { fill: #DFD; }
+    ::: .oo text { fill: pink; }
+
+![DeepStyles](../master/docimages/deepStyleExample.png?raw=true "docimages/deepStyleExample.svg")
+
+In the previous example, we can see that the lines color are 'shape scoped' and
+the tag applied to the shape above them applies to them
+
+Shapes
+------
+From version 1.3, you can substitute the shape of your element with one from a
+shape library. Right now the shape library is relatively small:
+
+     +---------+  +----------+
+     |         |  |          |
+     | circle  |  |          |
+     |         |  |    io    |
+     |{circle} |  | {io}     |
+     +---------+  +----------+
+    
+     +----------+  +----------+
+     |document  |  |          |
+     |          |  |          |
+     |          |  | storage  |
+     |{document}|  | {storage}|
+     +----------+  +----------+
+    
+    ::: .circle .filled_shape { shape: circle; }
+    ::: .document .filled_shape { shape: document; }
+    ::: .storage .filled_shape { shape: storage; }
+    ::: .io .filled_shape { shape: io; }
+
+![Shape exaple](../master/docimages/shapeExample.png?raw=true "docimages/shapeExample.svg")
+
+The mechanism use CSS styling to change the shape, if a CSS rule possess a
+`shape` pseudo attribute, then the generated shape is replaced with a SVG `use`
+tag with the value of the shape attribute as `href`
+
+But, you can create your own style library and change the default stylesheet.
+You can retrieve the default one with the shell command `asciidiagram
+--dump-library default-lib.svg`
+
+You can then add your own symbols tag in it and use it by calling `asciidiagram
+--with-library your-lib.svg`.
 
