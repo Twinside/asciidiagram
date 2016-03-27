@@ -14,9 +14,9 @@ Without introduction, Asciidiagram transform this:
     +---------+     |         |
     |  ASCII  +---->| Diagram |
     +---------+     |         |
-    |{flat}   |     +--+------/
+    | {flat}  |     +--+------/
     \---*-----/<=======/
-    ::: .flat { fill: #DDD; }
+    ::: .flat .filled_shape { fill: #DDD; }
 
 into that:
 ![Simili logo](../master/docimages/baseExample.png?raw=true "docimages/baseExample.svg")

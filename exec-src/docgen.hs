@@ -149,7 +149,7 @@ baseExample = T.unlines
   , "+---------+     |         |"
   , "|  ASCII  +---->| Diagram |"
   , "+---------+     |         |"
-  , "|{flat}   |     +--+------/"
+  , "| {flat}  |     +--+------/"
   , "\\---*-----/<=======/"
   , "::: .flat .filled_shape { fill: #DED; }"
   ]

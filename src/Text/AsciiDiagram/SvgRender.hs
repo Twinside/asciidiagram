@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 module Text.AsciiDiagram.SvgRender
     ( GridSize( .. )
     , defaultGridSize
@@ -344,8 +345,9 @@ classSet :: (Svg.WithDrawAttributes a) => Shape -> a -> a
 classSet shape e =
   e & drawAttr . attrClass %~ (++ S.toList (shapeTags shape))
 
-shapeToTree :: GridSize -> Shape -> Svg.Tree
-shapeToTree gscale shape@Shape
+shapeToTree :: (forall a. (Svg.WithDrawAttributes a) => a -> a)
+            -> GridSize -> Shape -> Svg.Tree
+shapeToTree classSetter  gscale shape@Shape
     { shapeIsClosed = True
     , shapeElements =
         [ ShapeSegment _
@@ -359,6 +361,7 @@ shapeToTree gscale shape@Shape
     } = classSet shape
       . dashingSet shape
       . Svg.RectangleTree
+      . classSetter
       $ Svg.defaultSvg
           { Svg._rectWidth = Svg.Num sWidth
           , Svg._rectHeight = Svg.Num sHeight
@@ -374,12 +377,11 @@ shapeToTree gscale shape@Shape
     pt@(V2 px py) = toSvg gscale mini ^+^ contractionVector 
     V2 sWidth sHeight = maxiPoint ^-^ pt
 
-
-
-shapeToTree gscale shape =
+shapeToTree classSetter gscale shape =
   case concat arrows of
     [] -> svgPath
-    lst -> Svg.GroupTree $ Svg.defaultSvg { Svg._groupChildren = svgPath : lst }
+    lst -> Svg.GroupTree . classSet shape
+                         $ Svg.defaultSvg { Svg._groupChildren = svgPath : lst }
   where
     toS = toSvg gscale
     shapeElems = associateNextPoint (shapeIsClosed shape)
@@ -387,6 +389,7 @@ shapeToTree gscale shape =
                $ rollToSegment shape
 
     svgPath = classSet shape . dashingSet shape . Svg.PathTree
+            . classSetter
             $ Svg.Path mempty pathCommands
 
     pathCommands =
@@ -444,9 +447,9 @@ svgOfDiagram =
 svgOfShape :: GridSize -> Shape -> Svg.Tree
 svgOfShape scale shape
   | shapeIsClosed shape =
-      applyDefaultShapeDrawAttr $ shapeToTree scale shape
+      shapeToTree applyDefaultShapeDrawAttr scale shape
   | otherwise =
-      applyDefaultLineDrawAttr $ shapeToTree strokeScale shape
+      shapeToTree applyDefaultLineDrawAttr strokeScale shape
   where
     strokeScale = scale { _gridShapeContraction = 0 }
 
