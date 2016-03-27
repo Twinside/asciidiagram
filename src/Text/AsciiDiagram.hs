@@ -382,7 +382,9 @@ pdfOfDiagramAtSize cache size =
 -- 
 
 -- $linesdoc
--- The basic syntax of asciidiagrams is made of lines made out\nof \'-\' and \'|\' characters. They can be connected with anchors\nlike \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)\n
+-- The basic syntax of asciidiagrams is made of lines made out
+-- of \'-\' and \'|\' characters. They can be connected with anchors
+-- like \'+\' (direct connection) or \'\\\' and \'\/\' (smooth connections)
 -- 
 -- 
 -- @
@@ -397,7 +399,8 @@ pdfOfDiagramAtSize cache size =
 -- @
 -- <<docimages/simple_lines.svg>>
 -- 
--- You can use dashed lines by using ':' for vertical lines or '=' for\nhorizontal lines.
+-- You can use dashed lines by using ':' for vertical lines or '=' for
+-- horizontal line
 -- 
 -- 
 -- @
@@ -412,7 +415,9 @@ pdfOfDiagramAtSize cache size =
 -- @
 -- <<docimages/dashed_lines.svg>>
 -- 
--- Arrows are made out of the \'\<\', \'\>\', \'^\' and \'v\'\ncharacters.\nIf the arrows are not connected to any lines, the text is left as is.\n
+-- Arrows are made out of the \'\<\', \'\>\', \'^\' and \'v\'
+-- characters.
+-- If the arrows are not connected to any lines, the text is left as is.
 -- 
 -- 
 -- @
@@ -423,6 +428,7 @@ pdfOfDiagramAtSize cache size =
 --      |  \< \> v ^
 --      |
 --      v
+-- 
 -- @
 -- <<docimages/arrows.svg>>
 -- 
@@ -509,8 +515,8 @@ pdfOfDiagramAtSize cache size =
 --  |{dst} |
 --  +------+
 -- 
--- ::: .src { fill: #AAF; }
--- ::: .dst { stroke: #FAA; stroke-width: 3px; }
+-- ::: .src .filled_shape { fill: #AAF; }
+-- ::: .dst .filled_shape { stroke: #FAA; stroke-width: 3px; }
 -- @
 -- <<docimages/styleExample.svg>>
 -- 

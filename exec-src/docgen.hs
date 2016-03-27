@@ -129,8 +129,8 @@ styleExample = T.unlines
   , " |{dst} |"
   , " +------+"
   , ""
-  , "::: .src { fill: #AAF; }"
-  , "::: .dst { stroke: #FAA; stroke-width: 3px; }"
+  , "::: .src .filled_shape { fill: #AAF; }"
+  , "::: .dst .filled_shape { stroke: #FAA; stroke-width: 3px; }"
   ]
 
 cabalExample :: T.Text
