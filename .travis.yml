@@ -2,6 +2,8 @@ language: haskell
 
 ghc:
   - 7.8
+  - 7.10
+  - 8.0
   
 global:
   - SKIP_HADDOCK=1
