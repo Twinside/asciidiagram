@@ -1,6 +1,10 @@
 Change log
 ==========
 
+v1.3.1.1 May 2016
+-----------------
+ * Fix: GHC 8.0.1 compilation
+
 v1.3.1 March 2016
 -----------------
  * Fix: CSS problems in case of bullet on closed shapes.
