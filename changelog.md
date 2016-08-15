@@ -1,7 +1,7 @@
 Change log
 ==========
 
-v1.3.1.1 August 2016
+v1.3.1.2 August 2016
 --------------------
  * Removing test suite from production pacakge
 
