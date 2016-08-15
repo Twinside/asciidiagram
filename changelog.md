@@ -1,6 +1,10 @@
 Change log
 ==========
 
+v1.3.1.1 August 2016
+--------------------
+ * Removing test suite from production pacakge
+
 v1.3.1.1 May 2016
 -----------------
  * Fix: GHC 8.0.1 compilation
