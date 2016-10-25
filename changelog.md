@@ -1,6 +1,10 @@
 Change log
 ==========
 
+v1.3.2 October 2016
+-------------------
+ * Bumping svg-tree dependency
+
 v1.3.1.1 August 2016
 --------------------
  * Removing test suite from production pacakge
