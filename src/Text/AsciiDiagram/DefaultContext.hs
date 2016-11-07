@@ -42,8 +42,8 @@ lightShapeGradient = Svg.ElementLinearGradient $
         { Svg._linearGradientStart = (Svg.Percent 0, Svg.Percent 0)
         , Svg._linearGradientStop =  (Svg.Percent 0, Svg.Percent 1)
         , Svg._linearGradientStops =
-            [ Svg.GradientStop 0 $ PixelRGBA8 245 245 245 255
-            , Svg.GradientStop 1 $ PixelRGBA8 216 216 216 255
+            [ Svg.defaultSvg { Svg._gradientOffset = 0, Svg._gradientColor = PixelRGBA8 245 245 245 255 }
+            , Svg.defaultSvg { Svg._gradientOffset = 1, Svg._gradientColor = PixelRGBA8 216 216 216 255 }
             ]
         }
 
