@@ -1,6 +1,10 @@
 Change log
 ==========
 
+v1.3.3 November 2017
+--------------------
+ * Fixing compilation issue.
+
 v1.3.2 October 2016
 -------------------
  * Bumping svg-tree dependency
