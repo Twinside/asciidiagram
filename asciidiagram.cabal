@@ -31,7 +31,7 @@ category:            Text, Diagram
 build-type:          Simple
 extra-source-files:  changelog.md
 extra-doc-files:     docimages/*.svg
-cabal-version:       >=1.10
+cabal-version:       >=1.18
 
 Source-Repository head
     Type:      git
