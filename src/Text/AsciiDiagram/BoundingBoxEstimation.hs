@@ -11,7 +11,7 @@ import Data.Monoid( Monoid( mappend, mempty )
                   )
 #endif
 
-import Data.Monoid( (<>) )
+import Data.Semigroup( Semigroup( .. ))
 import Linear( V2( .. )
              , (^+^)
              , (^-^)
@@ -25,10 +25,13 @@ data BoundingBox = BoundingBox
   }
   deriving (Eq, Show)
 
+instance Semigroup BoundingBox where
+  (<>) (BoundingBox min1 max1) (BoundingBox min2 max2) =
+    BoundingBox (min <$> min1 <*> min2) (max <$> max1 <*> max2)
+
 instance Monoid BoundingBox where
   mempty = BoundingBox (V2 0 0) (V2 0 0)
-  mappend (BoundingBox min1 max1) (BoundingBox min2 max2) =
-    BoundingBox (min <$> min1 <*> min2) (max <$> max1 <*> max2)
+  mappend = (<>)
 
 toEstimatedLength :: Number -> Coord
 toEstimatedLength n = case toUserUnit 96 n of
@@ -121,4 +124,5 @@ instance WithBoundingBox Tree where
     ImageTree _     -> mempty
     GroupTree g     -> boundingBoxOf g
     SymbolTree s    -> boundingBoxOf s
+    MeshGradientTree _ -> mempty
 

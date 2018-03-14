@@ -20,6 +20,7 @@ import Data.Monoid( Monoid( .. ), mempty )
 import Control.Applicative( (<$>) )
 #endif
 
+import Data.Semigroup( Semigroup( .. ))
 import Control.Monad( forM_, when )
 import Control.Monad.State.Strict( execState )
 import Control.Monad.State.Class( MonadState )
@@ -68,12 +69,15 @@ emptyGraph = Graph
   , _edges = mempty
   }
 
-instance (Ord v) => Monoid (Graph v vi e) where
-  mempty = emptyGraph
-  mappend a b = Graph
+instance Ord v => Semigroup (Graph v vi e) where
+  (<>) a b = Graph
     { _vertices = (mappend `on` _vertices) a b
     , _edges = (mappend `on` _edges) a b
     }
+
+instance (Ord v) => Monoid (Graph v vi e) where
+  mempty = emptyGraph
+  mappend = (<>)
 
 addVertice :: Ord v
            => v -> vinfo -> Graph v vinfo edgeInfo
