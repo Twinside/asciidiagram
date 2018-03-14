@@ -17,6 +17,7 @@ module Text.AsciiDiagram.Geometry( Point
 import Data.Monoid( Monoid( mappend, mempty ))
 #endif
 
+import Data.Semigroup( Semigroup( .. ) )
 import qualified Data.Set as S
 import qualified Data.Text as T
 import Linear( V2( .. ) )
@@ -97,10 +98,13 @@ instance Show Segment where
         kind = shows k
         draw = shows dr
 
+instance Semigroup Segment where
+    (<>) (Segment a _ _ _) (Segment _ b k d) =
+        Segment a b k d
+
 instance Monoid Segment where
     mempty = Segment 0 0 SegmentVertical SegmentSolid
-    mappend (Segment a _ _ _) (Segment _ b k d) =
-        Segment a b k d
+    mappend = (<>)
 
 -- | Describe a composant of shapes. Can
 -- be composed of anchors like "+*/\\" or
