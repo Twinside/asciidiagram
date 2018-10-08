@@ -1,6 +1,10 @@
 Change log
 ==========
 
+v1.3.3.2 March 2018
+--------------------
+ * GHC 8.6 bump
+
 v1.3.3.1 March 2018
 --------------------
  * Adding Semigroup instance for GHC 8.4
