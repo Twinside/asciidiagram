@@ -10,8 +10,10 @@ import Control.Applicative( (<|>) )
 import Control.Monad( when )
 import Data.Monoid( (<>) )
 
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
-import qualified Data.Text.IO as STIO
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import System.Directory( getTemporaryDirectory )
 import System.FilePath( (</>)
                       , replaceExtension
@@ -134,7 +136,7 @@ loadLibrary opt = case _withLibrary opt of
 runConversion :: Options -> FilePath -> FilePath -> IO ()
 runConversion opt inputFile outputFile = do
   verbose . putStrLn $ "Loading file " ++ inputFile
-  inputData <- STIO.readFile inputFile
+  inputData <- T.decodeUtf8 <$> B.readFile inputFile
   lib <- loadLibrary opt
   let diag = parseAsciiDiagram inputData
       svg = svgOfDiagramAtSize defaultGridSize lib diag

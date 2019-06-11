@@ -1,4 +1,5 @@
 import Data.Monoid( (<>) )
+import qualified Data.ByteString.Char8 as B
 import Data.IORef( IORef, newIORef, readIORef, writeIORef )
 import Text.Pandoc.JSON( Block( CodeBlock, RawBlock, Plain )
                        , Inline( Image )
@@ -6,6 +7,8 @@ import Text.Pandoc.JSON( Block( CodeBlock, RawBlock, Plain )
                        , toJSONFilter )
 import Text.AsciiDiagram( parseAsciiDiagram, saveAsciiDiagramAsSvg )
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as E
+import Debug.Trace
 
 main :: IO ()
 main = do
