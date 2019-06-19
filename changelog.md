@@ -1,6 +1,11 @@
 Change log
 ==========
 
+v1.3.3.3 June 2019
+------------------
+
+ * Fix UTF-8 file reading on windows
+
 v1.3.3.2 March 2018
 --------------------
  * GHC 8.6 bump
